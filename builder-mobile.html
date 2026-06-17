@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>《房間戰線》機體卡產生器（手機版）</title>
+<style>
+/* ============================================================
+   基礎
+   ============================================================ */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{ --red:#c01818; --ink:#111; --bg:#dedbd4; --panel:#f7f6f2; }
+body{
+  font-family:"Microsoft JhengHei","Noto Sans TC","PingFang TC",sans-serif;
+  background:var(--bg); color:var(--ink);
+  -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  -webkit-text-size-adjust:100%;
+}
+.mono{font-family:"Cascadia Mono",Consolas,"Courier New",monospace}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+.hidden{display:none !important}
+
+/* ============================================================
+   手機編輯端
+   ============================================================ */
+#mtop{
+  position:sticky;top:0;z-index:30;background:#111;color:#eee;
+  display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:3px solid #000;
+}
+#mtop .home{color:#ccc;text-decoration:none;font-size:18px}
+#mtop .ttl{font-size:15px;font-weight:bold;letter-spacing:1px}
+#mtop .grow{flex:1}
+#mtop .total{font-family:Consolas,monospace;font-size:13px;background:#222;border:1px solid #555;padding:3px 9px;border-radius:4px}
+#mtop .total.over{color:#ff6b6b;border-color:#ff6b6b;font-weight:bold}
+#mtop .menu{background:#333;color:#fff;border:1px solid #666;border-radius:6px;padding:5px 12px;font-size:17px;line-height:1}
+
+#mbody{max-width:560px;margin:0 auto;padding:10px 10px 24px}
+
+.mbudget{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;font-size:12px}
+.mbudget>span:first-child{font-weight:bold;background:#000;color:#fff;padding:1px 7px;letter-spacing:1px}
+.mbudget button{background:#e7e4dc;border:1px solid #999;border-radius:6px;padding:6px 10px;font-size:13px;font-weight:bold;color:#444}
+.mbudget button.on{background:#111;color:#fff;border-color:#111}
+.mbudget .capinfo{color:#666;font-size:11px;margin-left:auto}
+
+/* 單機卡 */
+.munit{background:var(--panel);border:1px solid #888;border-top:5px solid #000;border-radius:5px;margin-bottom:12px;padding:10px 11px;display:flex;flex-direction:column;gap:9px}
+.muhead{display:flex;align-items:center;gap:8px}
+.muhead .muno{font-family:Consolas,monospace;font-weight:bold;font-size:12px;background:#000;color:#fff;padding:3px 8px;border-radius:3px;flex:0 0 auto}
+.muhead .muname{flex:1;min-width:0;font-size:16px;font-weight:bold;padding:7px 9px;border:1px solid #999;border-radius:5px;background:#fff;font-family:inherit}
+.muhead .mucost{font-family:Consolas,monospace;font-size:14px;background:#fff;border:1px solid #999;border-radius:4px;padding:4px 8px;white-space:nowrap}
+.muhead .mucost.over{color:var(--red);border-color:var(--red);font-weight:bold}
+.muwarn{color:var(--red);font-size:12px;font-weight:bold;margin-top:-4px}
+
+.murow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px}
+.murow .mlab{font-weight:bold;background:#000;color:#fff;padding:2px 8px;font-size:12px;letter-spacing:2px;flex:0 0 auto}
+.achip{background:#fff;border:1px solid #999;border-radius:16px;padding:7px 14px;font-size:14px;font-weight:bold;color:#555}
+.achip.on{background:#2f72b5;color:#fff;border-color:#2f72b5}
+.ahint{color:#666;font-size:11px}
+.mstep{display:flex;align-items:center;gap:4px}
+.mstep button{width:38px;height:38px;border-radius:8px;background:#fff;border:1px solid #888;font-size:20px;font-weight:bold}
+.mstep button:active{background:#ddd}
+.mstep .sval{font-family:Consolas,monospace;font-size:19px;font-weight:bold;min-width:30px;text-align:center}
+.shint{font-size:11px;color:#555}
+
+.musec .mseclab{font-size:11px;font-weight:bold;color:#666;letter-spacing:2px;margin-bottom:5px}
+.mslot{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.mslot .slab2{font-size:11px;font-weight:bold;color:#fff;background:#666;border-radius:3px;padding:3px 6px;width:70px;text-align:center;flex:0 0 auto}
+.addbtn{flex:1;text-align:left;background:#fff;border:1.5px dashed #aaa;border-radius:7px;padding:11px 12px;font-size:14px;color:#888}
+.addbtn:active{background:#f0efe8}
+.mgear .addbtn{flex:none;display:inline-block;width:auto}
+.mslot .twoh{flex:1;color:#999;font-size:12px;padding:8px 4px}
+.wchip2{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;text-align:left;background:#111;color:#fff;border-radius:7px;padding:8px 11px}
+.wchip2:active{background:#333}
+.wchip2 .wn2{font-size:14px;font-weight:bold;display:flex;align-items:center;gap:5px}
+.wchip2 .wn2 .modb{font-style:normal;font-size:10px;background:#fff;color:#000;border-radius:3px;padding:0 4px}
+.wchip2 .ws2{font-family:Consolas,monospace;font-size:10.5px;color:#cfcfcf}
+.wchip2 .wp2{font-family:Consolas,monospace;font-size:11px;color:#ffd6d6}
+.mgear{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.mchip{display:inline-flex;align-items:center;gap:5px;background:#444;color:#fff;font-size:12px;padding:6px 10px;border-radius:14px}
+.mchip i{font-family:Consolas,monospace;font-style:normal;color:#ffd6d6}
+
+/* ============================================================
+   底部選單／挑選器 sheet
+   ============================================================ */
+#sheetMask{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:40}
+#msheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:50;max-width:560px;margin:0 auto;
+  background:#fff;border-top:3px solid #000;border-radius:16px 16px 0 0;
+  box-shadow:0 -6px 26px rgba(0,0,0,.35);max-height:82vh;display:flex;flex-direction:column;
+}
+.msh-head{flex:0 0 auto;display:flex;align-items:center;font-size:15px;font-weight:bold;
+  padding:12px 14px;border-bottom:1px solid #ddd;background:#f3f1ea;border-radius:13px 13px 0 0}
+.msh-head .msh-x{margin-left:auto;background:#eceae3;border:1px solid #aaa;border-radius:6px;width:30px;height:30px;font-size:15px}
+.msh-body{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 12px calc(14px + env(safe-area-inset-bottom))}
+.pgrp{font-size:11px;font-weight:bold;letter-spacing:2px;color:#fff;background:#000;padding:3px 8px;border-radius:3px;margin:10px 0 6px}
+.pgrp:first-child{margin-top:0}
+.pitem{width:100%;text-align:left;display:flex;flex-direction:column;gap:2px;background:#fff;border:1px solid #ccc;border-left:4px solid #000;border-radius:5px;padding:9px 11px;margin-bottom:6px}
+.pitem:active{background:#f3f1ea}
+.pitem.dis{opacity:.4;pointer-events:none}
+.pitem .pin{font-size:15px;font-weight:bold;display:flex;align-items:center;gap:6px}
+.pitem .pin i{font-style:normal;font-size:10px;background:#000;color:#fff;border-radius:3px;padding:0 5px}
+.pitem .pin i.exp{background:#7a3}
+.pitem .pis{font-family:Consolas,monospace;font-size:11px;color:#555}
+.pitem .pip{font-family:Consolas,monospace;font-size:12px;color:#a33;font-weight:bold;position:absolute}
+.pitem{position:relative}.pitem .pip{right:11px;top:9px}
+
+.actions .actbtn{width:100%;text-align:left;background:#111;color:#fff;border-radius:9px;padding:14px;font-size:16px;font-weight:bold;margin-bottom:9px}
+.actions .actbtn.go{background:var(--red)}
+.actions .actbtn.danger{background:#7a1414}
+.actions .actbtn.ghost{background:#eceae3;color:#222;border:1px solid #aaa}
+.confmsg{font-size:14px;line-height:1.6;margin-bottom:12px}
+.optrow{display:flex;gap:10px;align-items:flex-start;padding:11px 4px;border-bottom:1px solid #eee}
+.optrow input{margin-top:3px;width:20px;height:20px;flex:0 0 auto}
+.optrow b{display:block;font-size:14px}
+.optrow i{display:block;font-size:11px;color:#666;font-style:normal;line-height:1.4;margin-top:2px}
+
+/* ============================================================
+   列印預覽（折疊）
+   ============================================================ */
+#previewBox{display:none;margin-top:6px}
+#previewBox.open{display:block}
+#previewBox .pvhead{font-size:12px;color:#555;text-align:center;margin-bottom:6px}
+
+/* ============================================================
+   列印頁(A4 直式 210×297mm,三等份) — 與桌機版同
+   ============================================================ */
+@page{size:A4 portrait;margin:0}
+.sheet{
+  width:210mm;height:296.6mm;background:#fff;position:relative;overflow:hidden;
+  box-shadow:0 2px 14px rgba(0,0,0,.35);
+  font-size:2.6mm;line-height:1.35;
+}
+.card{width:210mm;height:93.7mm;position:relative;overflow:hidden}
+.card.cut{border-bottom:0.25mm dashed #bbb}
+.heat{position:absolute;left:0;bottom:1.5mm;width:8mm;display:flex;flex-direction:column-reverse;border-bottom:0.35mm solid #000;border-right:0.35mm solid #000;}
+.hc{height:var(--ch);flex:0 0 var(--ch);display:flex;align-items:center;justify-content:center;font-family:Consolas,monospace;font-size:2.2mm;border-top:0.18mm solid #888;}
+.hc.capline{border-top:1.1mm solid #000}
+.hc.capline.dash{border-top:1.1mm dashed #000}
+.hc.capv{font-weight:bold}
+.hc.ov{background:repeating-linear-gradient(45deg, rgba(180,24,24,.55) 0, rgba(180,24,24,.55) .6mm, transparent .6mm, transparent 1.7mm),#f5e2e2;}
+.ovlab{position:absolute;right:.2mm;writing-mode:vertical-rl;display:flex;align-items:center;justify-content:center;font-size:2.5mm;font-weight:bold;color:var(--red);letter-spacing:1mm;pointer-events:none;}
+.cbody{position:absolute;left:11mm;right:0;top:0;bottom:0;padding:1.6mm 4mm 1.2mm 2mm;display:flex;flex-direction:column;}
+.bar{height:1mm;background:#000;flex:0 0 auto;margin:.5mm 0}
+.bar.thin{height:.45mm}
+.chead{display:flex;align-items:baseline;gap:4mm;flex:0 0 auto}
+.chead .cname{font-size:5mm;font-weight:bold;letter-spacing:.8mm}
+.chead .cname.blank{color:#999;font-weight:normal;font-size:3.4mm}
+.chead .nameline{flex:1;border-bottom:.35mm solid #000;min-width:40mm;height:5.5mm}
+.chead .cpts{font-family:Consolas,monospace;font-size:3.6mm;font-weight:bold;white-space:nowrap}
+.chead .carm{font-size:2.8mm;white-space:nowrap;margin-left:auto}
+.chead .carm b{border:.3mm solid #000;padding:0 1mm}
+.srow{display:flex;align-items:center;gap:1.6mm;flex:0 0 auto;margin:.7mm 0 .4mm;flex-wrap:nowrap}
+.srow .slab{font-weight:bold;font-size:2.8mm;letter-spacing:1mm;background:#000;color:#fff;padding:0 1.2mm}
+.sb{width:4.4mm;height:4.4mm;border:.35mm solid #000;flex:0 0 auto}
+.sth{width:1.4mm;height:5.6mm;background:var(--red);border:.25mm solid #000;flex:0 0 auto;margin:0 .3mm}
+.snote{font-size:2.3mm;color:#333;margin-left:2mm;white-space:nowrap}
+.wgroups{display:grid;grid-template-columns:1fr 1fr;column-gap:4mm;row-gap:.7mm;flex:0 0 auto;overflow:hidden;margin-top:.4mm}
+.wg{min-height:8mm}
+.wg.spacer{border:none}
+.wrow.empty{min-height:3.4mm}
+.wgt{display:flex;align-items:center;gap:1.6mm;border-bottom:.45mm solid #000;font-size:2.7mm;padding-bottom:.2mm;margin-bottom:.4mm;}
+.wgt b{letter-spacing:.6mm}
+.wgt .cbl{font-size:2.2mm;color:#333;margin-left:auto;display:flex;align-items:center;gap:.7mm}
+.cb{width:2.7mm;height:2.7mm;border:.32mm solid #000;display:inline-block;flex:0 0 auto;background:#fff}
+.wrow{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:1.8mm;font-size:2.45mm;padding:.15mm 0;border-bottom:.15mm dotted #bbb}
+.wrow .wname{font-weight:bold;font-size:2.6mm}
+.wrow .wname.basic{text-decoration:underline;text-underline-offset:.5mm;text-decoration-thickness:.35mm}
+.wrow .wpts{font-family:Consolas,monospace;font-weight:bold}
+.wrow .wpts::after{content:"點";font-size:2mm;font-weight:normal}
+.wrow .wstat{font-family:Consolas,monospace;font-size:2.35mm}
+.wrow .wtag{font-size:2.2mm;color:#222}
+.wrow .wchk{display:inline-flex;align-items:center;gap:.6mm;font-size:2.15mm;margin-left:auto;white-space:nowrap}
+.wrow .wchk .cb{width:2.4mm;height:2.4mm}
+.dots{display:inline-flex;gap:.5mm;align-items:center}
+.dot{width:2.5mm;height:2.5mm;border:.3mm solid #000;border-radius:50%;display:inline-block}
+.wrow.empty{color:#999;font-size:2.3mm;border-bottom:.15mm dotted #ccc}
+.wrow.writein{height:3.6mm;border-bottom:.2mm dotted #999}
+.gearline{flex:0 0 auto;font-size:2.5mm;border-top:.45mm solid #000;padding-top:.4mm;margin-top:.3mm}
+.gearline .glab{font-weight:bold;background:#000;color:#fff;padding:0 1.2mm;font-size:2.5mm;letter-spacing:1mm;margin-right:1.5mm}
+.gearline .gnote{color:#555;font-size:2.2mm}
+.notesrow{flex:1 1 auto;display:flex;align-items:flex-start;gap:2mm;margin-top:.8mm;min-height:0}
+.notesrow .nlab{font-size:2.4mm;font-weight:bold;letter-spacing:.5mm;writing-mode:vertical-rl;border-right:.35mm solid #000;padding-right:.6mm;align-self:stretch;max-height:22mm}
+.ng{display:grid;grid-template-columns:repeat(20,1fr);grid-auto-rows:5mm;flex:1 1 auto;border-left:.3mm solid #000;border-top:.3mm solid #000}
+.ng span{position:relative;border-right:.3mm solid #000;border-bottom:.3mm solid #000}
+.ng span i{position:absolute;top:.2mm;left:.6mm;font-style:normal;font-size:1.9mm;color:#b8b8b8;font-family:Consolas,monospace;line-height:1}
+.cheat{position:absolute;left:0;right:0;bottom:0;height:15.5mm;border-top:1.1mm solid #000;background:#fff;padding:.7mm 4mm 0 3mm;font-size:2.25mm;line-height:1.5;}
+.cheat .cline b{background:#000;color:#fff;padding:0 .9mm;margin-right:.6mm;font-size:2.1mm}
+.cheat .foot{display:flex;justify-content:space-between;color:#555;font-size:1.95mm;margin-top:.3mm}
+
+@media screen{ #previewBox .sheet{ zoom:0.42; margin:0 auto } }
+@media print{
+  body{background:#fff}
+  #mtop,#mbody,#msheet,#sheetMask{display:none !important}
+  #previewBox{display:block !important;margin:0}
+  #previewBox .pvhead{display:none}
+  .sheet{box-shadow:none;margin:0;zoom:1 !important}
+}
+</style>
+</head>
+<body>
+
+<div id="mtop">
+  <a href="index.html" class="home" title="回入口">⌂</a>
+  <span class="ttl">機體卡產生器</span>
+  <span class="grow"></span>
+  <span id="mtotal" class="total">合計 0/250</span>
+  <button id="btnMenu" class="menu" data-act="menu">⋯</button>
+</div>
+
+<div id="mbody">
+  <div class="mbudget">
+    <span>預算</span>
+    <button data-act="budget" data-b="duel">決鬥 100</button>
+    <button data-act="budget" data-b="team">3v3 250</button>
+    <button data-act="budget" data-b="deluxe">豪華 350</button>
+    <span class="capinfo" id="capInfo"></span>
+  </div>
+  <div id="munits"></div>
+  <div id="previewBox"><div class="pvhead">列印預覽（A4・列印時為實際大小）</div><div id="sheetWrap"><div class="sheet" id="sheet"></div></div></div>
+</div>
+
+<div id="sheetMask" class="hidden" data-act="closesheet"></div>
+<div id="msheet" class="hidden"><div class="msh-shell" id="msheetInner"></div></div>
+
+<script>
+/* ============================================================
+   遊戲數據（與桌機版 builder.html 同步——改數值兩邊都要改）
+   ============================================================ */
+const DATA = {
+  "chassis": { "evade": 4, "baseHeatCap": 10, "coverBonus": 2 },
+  "structureCost": [3,3,3,3,5,5,8,8,12,12],
+  "budgets": { "duel": {"total":100,"unitCap":100}, "team": {"total":250,"unitCap":null}, "deluxe": {"total":350,"unitCap":null} },
+  "hardpoints": ["左肩臂","右肩臂","左腿","右腿","背部"],
+  "options": [
+    { "id":"freeStruct5", "name":"免費基礎結構 5", "note":"每機前 5 點結構免費(第 6 骰起照常遞增計價)。墊高脆皮機下限,節奏更接近日系。", "affectsCost":true },
+    { "id":"partLoss", "name":"部位破壞", "note":"結構過半後受創擲 d6 破壞掛載點。關閉則傷害僅減結構。", "default":true },
+    { "id":"physicalRemoval", "name":"實體拆件", "note":"被破壞/拋棄部件真的從模型上拆下;關閉則卡上畫記。純外觀。" },
+    { "id":"deluxe350", "name":"3v3 豪華 350", "note":"3v3 預算改 350、單機上限 157(等同預算選單的豪華檔,放這裡方便一鍵)。" }
+  ],
+  "armors": ["複合","陶瓷","反射"],
+  "armorRing": { "複合": {"blocks":"化學能","weak":"能量"}, "陶瓷": {"blocks":"動能","weak":"化學能"}, "反射": {"blocks":"能量","weak":"動能"} },
+  "equipment": [
+    { "id":"thruster", "name":"推進器", "cost":8, "note":"解鎖高速移動" },
+    { "id":"flight", "name":"飛行組件", "cost":12, "note":"解鎖滯空" },
+    { "id":"heatsink", "name":"散熱器", "cost":"8*N", "note":"熱容量+3,第N具8×N點", "stackable":true },
+    { "id":"rack", "name":"擴充掛架", "cost":12, "note":"背部+1槽;部位骰5兩件全毀", "unique":true },
+    { "id":"smoke", "name":"煙霧彈發射器", "cost":8, "note":"即時裝置·彈藥1不可裝填;雙向遮蔽至多3格(移動中啟動1格),1 UD 內降為掩體;移動/近戰即消散", "stackable":true },
+    { "id":"vulcan", "name":"頭部火神炮", "cost":6, "exp":true, "stackable":true, "note":"彈藥1·結算窗:我方涉入之近戰攻擊結算後可宣告,使交戰對手本場近戰對拼骰池-1(射擊不受影響)" },
+    { "id":"shield_arm", "name":"臂盾", "cost":6, "exp":true, "note":"一次性·部位破壞最終確定後可改由臂盾承受(僅改派至盾自身),臂盾報廢" },
+    { "id":"shield_big", "name":"大盾", "cost":18, "exp":true, "note":"一次性·強制抵銷我方第一次受到的攻擊傷害(過熱/復位熱傷除外),抵銷後報廢" },
+    { "id":"shield_heavy", "name":"重盾", "cost":24, "exp":true, "stackable":true, "note":"一次性·二選一:可選時機全擋一次傷害,或改派一次部位破壞由其承受" }
+  ],
+  "mods": [
+    { "id":"overload", "name":"過載復位", "cost":10, "excludeTags":["格鬥"], "excludeRackBack":true, "badge":"復位", "note":"結算後可取消收招格,取消n格承受1+2+...+n熱" }
+  ],
+  "weapons": [
+    { "name":"據點型能量盾", "type":"能量", "action":"全系", "pow":"—", "slots":"維2+反1", "heat":"2+2+3", "cost":14, "exp":true, "shield":true, "tags":[], "note":"佔機動系3格(不能移動)·維持2格給掩體·第3格彈反:沒收該格第一發·彈反格可開火(破綻照算)·彈反後結束需裝填2" },
+    { "name":"機動型能量盾", "type":"能量", "action":"武裝", "pow":"—", "slots":"掩1+反1", "heat":"2+3", "cost":10, "exp":true, "shield":true, "tags":[], "note":"佔武裝系2格(不能開火)·首格給掩體·第2格彈反:沒收該格第一發·彈反格不可攻擊·彈反後結束需裝填2" },
+    { "name":"隨身手槍", "type":"動能", "action":"武裝", "acc":4, "pow":3, "slots":"2(1)", "heat":"0/0", "near":"優1", "far":"劣3", "cost":4, "tags":["基本"] },
+    { "name":"突擊步槍", "type":"動能", "action":"武裝", "acc":5, "pow":5, "slots":"3(1)", "heat":"0/1", "near":"", "far":"優1", "cost":15, "tags":[] },
+    { "name":"散彈槍", "type":"動能", "action":"武裝", "acc":5, "pow":6, "slots":"3(1)", "heat":"0/1", "near":"優2", "far":"劣3", "cost":16, "tags":[] },
+    { "name":"光束步槍", "type":"能量", "action":"武裝", "acc":5, "pow":6, "slots":"3(1)", "heat":"2/1", "near":"", "far":"", "cost":18, "tags":[] },
+    { "name":"狙擊步槍", "type":"動能", "action":"全系", "acc":5, "pow":8, "slots":"5(1)", "heat":"0/1", "near":"劣2", "far":"優2", "cost":25, "tags":[] },
+    { "name":"重機槍", "type":"動能", "action":"全系", "acc":3, "pow":3, "slots":"7(1-5)", "heat":"每發0/1", "near":"劣1", "far":"優1", "cost":22, "tags":["連射"] },
+    { "name":"火箭砲", "type":"化學能", "action":"全系", "acc":5, "pow":"著8/濺4-3", "slots":"4(1)", "heat":"1/2", "cost":28, "tags":["AoE","裝填(2)"] },
+    { "name":"拋棄式火箭筒", "type":"化學能", "action":"全系", "acc":6, "pow":"著7/濺4-1", "slots":"1(1)", "heat":"0/1", "near":"", "far":"", "cost":10, "tags":["AoE","彈藥(1)","不可裝填","無破綻"], "ammo":1 },
+    { "name":"榴彈發射器", "type":"化學能", "action":"武裝", "acc":5, "pow":"著5/濺3-2", "slots":"2(1)", "heat":"0/1", "near":"", "far":"劣1", "cost":14, "tags":["AoE","彈藥(4)","不可裝填"], "ammo":4 },
+    { "name":"迫擊砲", "type":"化學能", "action":"全系", "acc":5, "pow":"著6/濺3-2", "slots":"3(1)", "heat":"0/2", "cost":22, "tags":["AoE","曲射限定","彈藥(6)","不可裝填","最小射程"], "ammo":6 },
+    { "name":"反裝甲飛彈", "type":"化學能", "action":"武裝", "acc":5, "pow":10, "slots":"3(3)", "heat":"0/2", "near":"", "far":"優1", "cost":28, "tags":["鎖定","彈藥(2)","裝填(2)","最小射程"], "ammo":2 },
+    { "name":"火焰發射器", "type":"化學能", "action":"武裝", "acc":6, "pow":2, "slots":"2(1)", "heat":"1/3", "near":"優2", "far":"X", "cost":18, "tags":["近接限定","彈藥(4)","裝填(1)"], "ammo":4 },
+    { "name":"光束手槍", "type":"能量", "action":"武裝", "acc":4, "pow":4, "slots":"2(1)", "heat":"1/1", "near":"優1", "far":"劣2", "cost":8, "tags":["基本"] },
+    { "name":"高出力光束步槍", "type":"能量", "action":"全系", "acc":5, "pow":8, "slots":"4(1)", "heat":"4/1", "near":"", "far":"優1", "cost":24, "tags":[] },
+    { "name":"脈衝雷射投射器", "type":"能量", "action":"全系", "acc":4, "pow":"3/發", "slots":"5(2-4)", "heat":"每發1/1", "near":"劣1", "far":"優1", "cost":26, "tags":["線命中"] },
+    { "name":"高出力雷射炮", "type":"能量", "action":"全系", "acc":5, "pow":"6/發", "slots":"6(3-5)", "heat":"每發2/1", "near":"劣1", "far":"優1", "cost":34, "tags":["線命中","貫通","架設"] },
+    { "name":"光束軍刀", "type":"能量", "action":"全系", "melee":6, "pow":7, "slots":"全2(1)", "heat":"2/0", "cost":18, "tags":["格鬥","切割"] },
+    { "name":"長柄槍", "type":"動能", "action":"全系", "melee":5, "pow":7, "slots":"全3(2)", "heat":"0/0", "cost":16, "tags":["格鬥","距離壓制"] },
+    { "name":"鋼鐵大劍", "type":"動能", "action":"全系", "melee":4, "pow":10, "slots":"全3(2)", "heat":"0/0", "cost":20, "tags":["格鬥","雙手"], "twoHanded":true },
+    { "name":"流星錘", "type":"動能", "action":"全系", "melee":3, "pow":11, "slots":"全4(3)", "heat":"0/0", "cost":19, "tags":["格鬥","纏繞"] },
+    { "name":"樁打機", "type":"化學能", "action":"全系", "melee":2, "pow":12, "slots":"全3(1)", "heat":"1/0", "cost":24, "tags":["格鬥","雙手","裝填(1)"], "twoHanded":true },
+    { "name":"爆破矛", "type":"化學能", "action":"全系", "melee":4, "pow":9, "slots":"全3(2)", "heat":"1/0", "cost":20, "tags":["格鬥","距離壓制","裝填(1,僅命中後)"] },
+    { "name":"高出力光束軍刀", "type":"能量", "action":"全系", "melee":6, "pow":9, "slots":"全2(1)", "heat":"3/0", "cost":30, "tags":["格鬥","切割"] },
+    { "name":"超大型劍", "type":"動能", "action":"全系", "melee":4, "pow":12, "slots":"全3(2)", "heat":"0/0", "cost":34, "tags":["格鬥","雙手","切割"], "twoHanded":true },
+    { "name":"動力連枷", "type":"動能", "action":"全系", "melee":3, "pow":13, "slots":"全4(3)", "heat":"0/0", "cost":30, "tags":["格鬥","纏繞"] },
+    { "name":"雙聯樁打機", "type":"化學能", "action":"全系", "melee":2, "pow":12, "slots":"全3(1)", "heat":"1/0", "cost":36, "tags":["格鬥","雙手","彈藥(2)","裝填(1)"], "twoHanded":true, "ammo":2 }
+  ],
+  "sampleForce": [
+    { "name":"白兵", "armor":"複合", "structure":6,
+      "mounts": {"右肩臂":["突擊步槍"], "左肩臂":["光束軍刀"], "背部":["火箭砲"]},
+      "gear": ["推進器","散熱器"] },
+    { "name":"遊隼", "armor":"反射", "structure":5,
+      "mounts": {"右肩臂":["狙擊步槍"], "左腿":["散彈槍"], "左肩臂":["隨身手槍"]},
+      "gear": ["飛行組件","推進器","散熱器"] },
+    { "name":"雷雲", "armor":"複合", "structure":6,
+      "mounts": {"背部":["火箭砲","重機槍"], "右肩臂":["突擊步槍"], "左肩臂":["隨身手槍"]},
+      "gear": ["擴充掛架","散熱器"] }
+  ]
+};
+
+/* ============================================================
+   工具（與桌機版同）
+   ============================================================ */
+const LS_KEY = 'roomfront_card_draft_v1';
+const SLOT_KEYS = ['左肩臂','右肩臂','左腿','右腿','背部','背部2'];
+const weaponByName = Object.fromEntries(DATA.weapons.map(w=>[w.name,w]));
+function expOK(item){ return !item.exp || (state && state.expEnabled); }
+function shownWeapons(){ return DATA.weapons.filter(expOK); }
+function shownEquip(){ return DATA.equipment.filter(expOK); }
+const modById = Object.fromEntries((DATA.mods||[]).map(m=>[m.id,m]));
+const equipById = Object.fromEntries(DATA.equipment.map(e=>[e.id,e]));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function emptyUnit(){
+  return { name:'', armor:'複合', structure:5,
+    mounts:{左肩臂:null,右肩臂:null,左腿:null,右腿:null,背部:null,背部2:null}, gear:[], wmods:{} };
+}
+function sampleState(){
+  const units = DATA.sampleForce.map(s=>{
+    const u = emptyUnit();
+    u.name = s.name; u.armor = s.armor; u.structure = s.structure;
+    for(const [hp,arr] of Object.entries(s.mounts)){
+      if(hp==='背部'){ u.mounts['背部']=arr[0]||null; u.mounts['背部2']=arr[1]||null; }
+      else u.mounts[hp]=arr[0]||null;
+    }
+    u.gear = s.gear.map(n=>DATA.equipment.find(e=>e.name===n).id);
+    return u;
+  });
+  return { budget:'team', units };
+}
+function normalize(st){
+  const out = { budget: DATA.budgets[st&&st.budget] ? st.budget : 'team', options: {}, expEnabled: !!(st&&st.expEnabled), units: [] };
+  const optDefs = DATA.options||[];
+  for(const o of optDefs) out.options[o.id] = o.default===true;
+  if(st && st.options && typeof st.options==='object'){
+    for(const o of optDefs) if(typeof st.options[o.id]==='boolean') out.options[o.id]=st.options[o.id];
+  }
+  if(out.options.deluxe350 && out.budget!=='duel') out.budget='deluxe';
+  for(let i=0;i<3;i++){
+    const raw = (st && st.units && st.units[i]) || {};
+    const u = emptyUnit();
+    u.name = typeof raw.name==='string' ? raw.name.slice(0,24) : '';
+    u.armor = DATA.armors.includes(raw.armor) ? raw.armor : '複合';
+    u.structure = Math.min(10, Math.max(1, parseInt(raw.structure,10)||5));
+    for(const k of SLOT_KEYS){
+      const v = raw.mounts && raw.mounts[k];
+      if(v && weaponByName[v]) u.mounts[k]=v;
+    }
+    if(Array.isArray(raw.gear)) u.gear = raw.gear.filter(id=>equipById[id]);
+    if(!u.gear.includes('rack')) u.mounts['背部2']=null;
+    if(raw.wmods && typeof raw.wmods==='object'){
+      for(const [k,mid] of Object.entries(raw.wmods)){
+        if(modCanAttach(u,k,mid)) u.wmods[k]=mid;
+      }
+    }
+    out.units.push(u);
+  }
+  return out;
+}
+/* ---- 計價 ---- */
+function structCost(n){
+  let c = DATA.structureCost.slice(0,n).reduce((a,b)=>a+b,0);
+  if(state && state.options && state.options.freeStruct5){
+    c -= DATA.structureCost.slice(0, Math.min(5,n)).reduce((a,b)=>a+b,0);
+  }
+  return c;
+}
+function gearCost(gear){
+  let sinks=0, c=0;
+  for(const id of gear){
+    if(id==='heatsink'){ sinks++; c += 8*sinks; }
+    else c += equipById[id].cost;
+  }
+  return c;
+}
+function unitWeaponEntries(u){
+  const out=[];
+  for(const k of SLOT_KEYS){
+    const n=u.mounts[k];
+    if(!n) continue;
+    const w=weaponByName[n];
+    if(k==='右肩臂' && w.twoHanded && u.mounts['左肩臂']===n) continue;
+    out.push([k,w]);
+  }
+  return out;
+}
+function unitCost(u){
+  return structCost(u.structure)
+    + unitWeaponEntries(u).reduce((a,[,w])=>a+w.cost,0)
+    + gearCost(u.gear)
+    + modsCost(u);
+}
+function modCanAttach(u, hp, mid){
+  const m = modById[mid]; if(!m) return false;
+  const n = u.mounts[hp]; if(!n) return false;
+  const w = weaponByName[n];
+  if((m.excludeTags||[]).some(t=>(w.tags||[]).includes(t))) return false;
+  if(m.excludeRackBack && hp.startsWith('背部') && u.gear.includes('rack')) return false;
+  return true;
+}
+function modsCost(u){
+  return Object.values(u.wmods||{}).reduce((a,mid)=>a+((modById[mid]||{}).cost||0),0);
+}
+function sinkCount(u){ return u.gear.filter(id=>id==='heatsink').length; }
+function heatCap(u){ return DATA.chassis.baseHeatCap + 3*sinkCount(u); }
+function isUnitEmpty(u){
+  return !u.name && u.gear.length===0 && SLOT_KEYS.every(k=>!u.mounts[k]);
+}
+/* ---- 武器顯示字串 ---- */
+function statStr(w){
+  const hit = (w.melee!=null) ? '近'+w.melee : '命'+w.acc;
+  let dist='';
+  if(w.melee==null){
+    const seg=[];
+    if(w.near) seg.push('近'+(w.near==='X'?'✕':w.near));
+    if(w.far)  seg.push('遠'+(w.far==='X'?'✕':w.far));
+    if(seg.length) dist=' ['+seg.join('/')+']';
+  }
+  return hit+dist+' 威'+w.pow+' 格'+w.slots+' 熱'+String(w.heat).replace('/','÷');
+}
+function tagStr(w){
+  const t=[...(w.tags||[])];
+  if(w.action==='全系' && !String(w.slots).startsWith('全')) t.unshift('全系');
+  return t.join('·');
+}
+/* ---- 序列化（與桌機版／helper 互通）---- */
+function encodeState(st){
+  const json = JSON.stringify(st);
+  return btoa(unescape(encodeURIComponent(json))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function decodeState(s){
+  const b64 = s.replace(/-/g,'+').replace(/_/g,'/');
+  return JSON.parse(decodeURIComponent(escape(atob(b64))));
+}
+
+/* ============================================================
+   狀態
+   ============================================================ */
+let state = null;
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
+  try{ history.replaceState(null,'','#f='+encodeState(state)); }catch(e){}
+}
+function boot(){
+  let st=null;
+  const m = location.hash.match(/^#f=(.+)$/);
+  if(m){ try{ st=decodeState(m[1]); }catch(e){} }
+  if(!st){ try{ const raw=localStorage.getItem(LS_KEY); if(raw) st=JSON.parse(raw); }catch(e){} }
+  if(!st) st = sampleState();
+  state = normalize(st);
+}
+
+/* ============================================================
+   列印頁渲染（與桌機版同——同一張臉）
+   ============================================================ */
+function heatStripHTML(cap, blank){
+  const n = cap + 6;
+  const ch = Math.min(8, 90/n);
+  let cells='';
+  for(let v=0; v<n; v++){
+    const cls = ['hc'];
+    if(v>=cap) cls.push('ov');
+    if(v===cap) cls.push('capv');
+    if(v===cap-1) cls.push('capline'+(blank?' dash':''));
+    cells += '<div class="'+cls.join(' ')+'" style="--ch:'+ch.toFixed(3)+'mm">'+v+'</div>';
+  }
+  const zone = ((n-cap)*ch).toFixed(3);
+  return '<div class="heat">'+cells+'<div class="ovlab" style="top:0;height:'+zone+'mm"></div></div>';
+}
+function structRowHTML(n, blank){
+  const th = Math.floor(n/2);
+  let boxes='';
+  for(let i=1;i<=n;i++){
+    boxes += '<span class="sb"></span>';
+    if(!blank && i===th) boxes += '<span class="sth"></span>';
+  }
+  return '<div class="srow"><span class="slab">結構</span>'+boxes+
+    '<span class="snote">'+(blank?'門檻=⌊格數/2⌋|':'')+'過門檻:每次受創擲部位d6</span></div>';
+}
+function weaponRowHTML(w, mod){
+  const basic = (w.tags||[]).includes('基本');
+  const ammo = w.ammo ? '<span class="dots">'+'<span class="dot"></span>'.repeat(w.ammo)+'</span>' : '';
+  return '<div class="wrow">'+
+    '<span class="wname'+(basic?' basic':'')+'">'+esc(w.name)+(mod?'<span class="modbadge">'+esc(mod.badge||mod.name)+'</span>':'')+'</span>'+
+    '<span class="wpts">'+(mod?w.cost+'+'+mod.cost:w.cost)+'</span>'+
+    '<span class="wstat">'+esc(statStr(w))+'</span>'+
+    (tagStr(w)?'<span class="wtag">'+esc(tagStr(w))+'</span>':'')+
+    '<span class="wchk">拋棄<span class="cb"></span>'+ammo+'</span>'+
+    '</div>';
+}
+function groupHTML(title, rowsHtml){
+  return '<div class="wg"><div class="wgt"><b>'+title+'</b>'+
+    '<span class="cbl"><span class="cb"></span>點位已毀</span></div>'+rowsHtml+'</div>';
+}
+function cardHTML(u, last){
+  if(isUnitEmpty(u)) return blankCardHTML(last);
+  const cap = heatCap(u);
+  const ring = DATA.armorRing[u.armor];
+  const hasRack = u.gear.includes('rack');
+  function hpCell(hp){
+    const n = u.mounts[hp];
+    if(!n) return groupHTML(hp==='背部2'?'背部(掛架)':hp, '<div class="wrow empty"></div>');
+    const w = weaponByName[n];
+    if(hp==='右肩臂' && w.twoHanded && u.mounts['左肩臂']===n)
+      return groupHTML(hp, '<div class="wrow empty">〈雙手武器佔用:'+esc(n)+'〉</div>');
+    const title = hp==='背部2' ? '背部(掛架)' : hp + (w.twoHanded?'+右肩臂(雙手)':'');
+    return groupHTML(title, weaponRowHTML(w, modById[u.wmods[hp]]));
+  }
+  let groups = hpCell('左肩臂')+hpCell('右肩臂')+hpCell('左腿')+hpCell('右腿')+hpCell('背部')+
+    (hasRack ? hpCell('背部2') : '<div class="wg spacer"></div>');
+  let sinkSeen=0;
+  const gparts = [];
+  const counted = {};
+  for(const id of u.gear){
+    if(id==='heatsink'){ sinkSeen++; continue; }
+    counted[id]=(counted[id]||0)+1;
+  }
+  for(const id of Object.keys(counted)){
+    const e=equipById[id];
+    gparts.push(esc(e.name)+(counted[id]>1?'×'+counted[id]:'')+'<span class="gnote">〔'+esc(e.note)+'〕</span>');
+  }
+  if(sinkSeen) gparts.push('散熱器×'+sinkSeen+'<span class="gnote">〔熱容量+3/具→容量'+cap+'〕</span>');
+  const gearline = gparts.length ? gparts.join('、') : '<span class="gnote">(無)</span>';
+  return '<div class="card'+(last?' last cut':' cut')+'">'+
+    heatStripHTML(cap,false)+
+    '<div class="cbody">'+
+      '<div class="chead">'+
+        '<span class="cname">'+esc(u.name||'(未命名)')+'</span>'+
+        '<span class="cpts">'+unitCost(u)+'點</span>'+
+        '<span class="carm">裝甲 <b>'+u.armor+'</b> | 弱點:'+ring.weak+'</span>'+
+      '</div><div class="bar"></div>'+
+      structRowHTML(u.structure,false)+
+      '<div class="wgroups">'+groups+'</div>'+
+      '<div class="gearline"><span class="glab">裝備</span>'+gearline+'</div>'+
+      expNotesHTML(u)+
+      notesHTML()+
+    '</div></div>';
+}
+function blankCardHTML(last){
+  let groups='';
+  for(const hp of ['左肩臂','右肩臂','左腿','右腿','背部']){
+    groups += groupHTML(hp,'<div class="wrow writein"></div><div class="wrow writein"></div>');
+  }
+  groups += groupHTML('背部(掛架)','<div class="wrow writein"></div><div class="wrow writein"></div>');
+  return '<div class="card'+(last?' last cut':' cut')+'">'+
+    heatStripHTML(DATA.chassis.baseHeatCap,true)+
+    '<div class="cbody">'+
+      '<div class="chead"><span class="cname blank">機體名稱</span><span class="nameline"></span>'+
+        '<span class="cpts">____點</span>'+
+        '<span class="carm">裝甲 複合<span class="cb"></span> 陶瓷<span class="cb"></span> 反射<span class="cb"></span></span>'+
+      '</div><div class="bar"></div>'+
+      structRowHTML(10,true)+
+      '<div class="wgroups">'+groups+'</div>'+
+      '<div class="gearline"><span class="glab">裝備</span><span class="gnote">基礎熱容量10,散熱器每具+3(熱條容量線以虛線示基礎10)</span></div>'+
+      notesHTML()+
+    '</div></div>';
+}
+function notesHTML(){
+  const rows = state.budget==='duel' ? 2 : 4;
+  let cells='';
+  for(let i=0;i<rows*20;i++) cells += '<span>'+(i%5===0?'<i>'+(i+1)+'</i>':'')+'</span>';
+  return '<div class="notesrow"><span class="nlab">筆記</span><div class="ng">'+cells+'</div></div>';
+}
+function expNotesHTML(u){
+  const items=[];
+  for(const k of Object.keys(u.mounts)){
+    const n=u.mounts[k]; const w=n&&weaponByName[n];
+    if(w&&w.exp) items.push([w.name, w.note||'']);
+  }
+  const seen={};
+  for(const id of u.gear){
+    const e=equipById[id];
+    if(e&&e.exp){ if(seen[id]){seen[id]++;continue;} seen[id]=1; items.push([e.name, e.note||'']); }
+  }
+  if(!items.length) return '';
+  const rows=items.map(([nm,nt])=>'<div class="exprow"><b>'+esc(nm)+'</b>'+(nt?'<span>'+esc(nt)+'</span>':'')+'</div>').join('');
+  return '<div class="expbox"><div class="expttl">實驗規則說明</div>'+rows+'</div>';
+}
+function activeOptsLabel(){
+  const on = (DATA.options||[]).filter(o=>state&&state.options&&state.options[o.id]).map(o=>o.name);
+  return on.length? on.join('・') : '標準規則';
+}
+function cheatHTML(){
+  return '<div class="cheat">'+
+    '<div class="cline"><b>移動</b>步行≤1UD=1格·散2|步行2UD=2格|噴射=1格·每UD+2熱|高速=2格·4UD·每UD+2熱·視同掩體·全系|滯空移動每UD另+1熱</div>'+
+    '<div class="cline"><b>行動</b>空過=1格·散4|裝填=武裝行動·可與機動並行·裝填中=破綻 <b>門檻</b>普通5+/優勢4+/劣勢6+(同向不疊,最多±1)|掩體=迴避+2(布林不疊加)</div>'+
+    '<div class="cline"><b>破綻</b>(攻擊/棄裝/裝填之非命中格):遠程打=迴避劣勢|近戰打=自動命中 <b>過熱</b>(熱≥容量):全擲骰劣勢,過熱中每+1熱=+1傷 <b>復位</b>結算後取消收招n格=1+2+…+n熱</div>'+
+    '<div class="cline"><b>距離</b>[近/遠]=該距離優劣勢階數(優1=4+·優2溢出+1骰;劣1=6+·劣2溢出-1骰)·近≤1UD遠>1UD·✕=不可攻擊|命中段算距離·威力段算剋制·兩段獨立</div>'+
+    '<div class="foot"><span>《房間戰線》機體卡|本表單為粉絲自製,非商業用途。</span><span class="mono">啟用:'+esc(activeOptsLabel())+'</span></div>'+
+    '</div>';
+}
+function renderSheet(){
+  document.getElementById('sheet').innerHTML =
+    cardHTML(state.units[0],false)+cardHTML(state.units[1],false)+cardHTML(state.units[2],true)+cheatHTML();
+}
+
+/* ============================================================
+   手機編輯端渲染（點選式）
+   ============================================================ */
+function renderTop(){
+  const b = DATA.budgets[state.budget];
+  const total = state.units.reduce((a,u)=>a+(isUnitEmpty(u)?0:unitCost(u)),0);
+  const box = document.getElementById('mtotal');
+  box.textContent='合計 '+total+'/'+b.total; box.classList.toggle('over', total>b.total);
+  document.getElementById('capInfo').textContent = b.unitCap!=null ? '單機上限 '+b.unitCap : '無單機上限';
+  document.querySelectorAll('[data-act="budget"]').forEach(btn=>btn.classList.toggle('on', btn.dataset.b===state.budget));
+}
+function renderUnits(){
+  const cap = DATA.budgets[state.budget].unitCap;
+  document.getElementById('munits').innerHTML = state.units.map((u,i)=>{
+    const cost=unitCost(u); const over=(cap!=null)&&cost>cap;
+    const hasRack=u.gear.includes('rack');
+    const slotKeys=['左肩臂','右肩臂','左腿','右腿','背部'].concat(hasRack?['背部2']:[]);
+    const ring=DATA.armorRing[u.armor];
+    const sc=structCost(u.structure);
+    const nextCost = u.structure<10 ? '+'+DATA.structureCost[u.structure] : '—';
+    const slots = slotKeys.map(k=>slotRowHTML(u,i,k)).join('');
+    let sinkSeen=0;
+    const gchips = u.gear.map((id,gi)=>{
+      const e=equipById[id]; let label=esc(e.name), pts=e.cost;
+      if(id==='heatsink'){ sinkSeen++; label+='#'+sinkSeen; pts=8*sinkSeen; }
+      return '<span class="mchip" data-act="rmg" data-u="'+i+'" data-gi="'+gi+'">'+label+' <i>'+pts+'</i> ×</span>';
+    }).join('');
+    return '<div class="munit">'+
+      '<div class="muhead"><span class="muno">機體'+(i+1)+'</span>'+
+        '<input class="muname" type="text" placeholder="機體名稱(印於卡頭)" maxlength="24" data-act="name" data-u="'+i+'" value="'+esc(u.name)+'">'+
+        '<span class="mucost'+(over?' over':'')+'">'+cost+'點</span></div>'+
+      (over?'<div class="muwarn">⚠ 超過單機上限 '+cap+'</div>':'')+
+      '<div class="murow"><span class="mlab">裝甲</span>'+
+        DATA.armors.map(a=>'<button class="achip'+(u.armor===a?' on':'')+'" data-act="armor" data-u="'+i+'" data-a="'+a+'">'+a+'</button>').join('')+
+        '<span class="ahint">弱:'+ring.weak+'</span></div>'+
+      '<div class="murow"><span class="mlab">結構</span>'+
+        '<div class="mstep"><button data-act="s-" data-u="'+i+'">−</button><span class="sval">'+u.structure+'</span><button data-act="s+" data-u="'+i+'">＋</button></div>'+
+        '<span class="shint">'+sc+'點(下一格'+nextCost+')・門檻'+Math.floor(u.structure/2)+'</span></div>'+
+      '<div class="musec"><div class="mseclab">掛載點</div>'+slots+'</div>'+
+      '<div class="musec"><div class="mseclab">裝備</div><div class="mgear">'+gchips+'<button class="addbtn" data-act="pickg" data-u="'+i+'">＋ 加裝備</button></div></div>'+
+    '</div>';
+  }).join('');
+}
+function slotRowHTML(u,i,k){
+  const lab = k==='背部2'?'背部(掛架)':k;
+  const n=u.mounts[k];
+  if(!n) return '<div class="mslot"><span class="slab2">'+lab+'</span><button class="addbtn" data-act="pickw" data-u="'+i+'" data-hp="'+k+'">＋ 選武器</button></div>';
+  const w=weaponByName[n]; const two=w.twoHanded&&(k==='左肩臂'||k==='右肩臂');
+  if(k==='右肩臂' && w.twoHanded && u.mounts['左肩臂']===n)
+    return '<div class="mslot"><span class="slab2">'+lab+'</span><span class="twoh">〈雙手佔用：'+esc(n)+'〉</span></div>';
+  const mid=u.wmods[k], mod=mid&&modById[mid];
+  return '<div class="mslot"><span class="slab2">'+lab+'</span>'+
+    '<button class="wchip2" data-act="slotact" data-u="'+i+'" data-hp="'+k+'">'+
+      '<span class="wn2">'+esc(n)+(two?'(雙手)':'')+(mod?'<i class="modb">'+esc(mod.badge)+'</i>':'')+'</span>'+
+      '<span class="ws2">'+esc(statStr(w))+'</span>'+
+      '<span class="wp2">'+w.cost+(mod?'+'+mod.cost:'')+'點</span>'+
+    '</button></div>';
+}
+function renderAll(){ renderTop(); renderUnits(); renderSheet(); }
+function commit(){ save(); renderAll(); }
+
+/* ============================================================
+   底部 sheet（挑選器／選單）
+   ============================================================ */
+function openSheet(html){
+  document.getElementById('msheetInner').innerHTML=html;
+  document.getElementById('msheet').classList.remove('hidden');
+  document.getElementById('sheetMask').classList.remove('hidden');
+}
+function closeSheet(){
+  document.getElementById('msheet').classList.add('hidden');
+  document.getElementById('sheetMask').classList.add('hidden');
+}
+function shHead(t){ return '<div class="msh-head">'+t+'<button class="msh-x" data-act="closesheet">✕</button></div>'; }
+
+function weaponPickerHTML(ui,hp){
+  const u=state.units[ui];
+  const isArm=(hp==='左肩臂'||hp==='右肩臂');
+  function placeable(w){
+    if(!w.twoHanded) return true;
+    if(!isArm) return false;                       // 雙手只能上肩臂
+    const other = hp==='左肩臂'?'右肩臂':'左肩臂';
+    return !u.mounts[other] || u.mounts[other]===u.mounts[hp];  // 另一臂空、或正在替換同一把
+  }
+  const all=shownWeapons();
+  const ranged=all.filter(w=>!w.tags.includes('格鬥')&&!w.shield&&placeable(w));
+  const melee =all.filter(w=> w.tags.includes('格鬥')&&placeable(w));
+  const shields=all.filter(w=> w.shield&&placeable(w));
+  let html=shHead('選武器 → '+(hp==='背部2'?'背部(掛架)':hp))+'<div class="msh-body">';
+  for(const t of ['動能','能量','化學能']){
+    const list=ranged.filter(w=>w.type===t); if(!list.length) continue;
+    html+='<div class="pgrp">'+t+' 射擊</div>'+list.map(w=>pickItem(ui,hp,w)).join('');
+  }
+  if(melee.length) html+='<div class="pgrp">格鬥武器</div>'+melee.map(w=>pickItem(ui,hp,w)).join('');
+  if(shields.length) html+='<div class="pgrp">實驗護盾</div>'+shields.map(w=>pickItem(ui,hp,w)).join('');
+  html+='</div>';
+  return html;
+}
+function pickItem(ui,hp,w){
+  return '<button class="pitem" data-act="assignw" data-u="'+ui+'" data-hp="'+hp+'" data-n="'+esc(w.name)+'">'+
+    '<span class="pin">'+esc(w.name)+(w.twoHanded?' <i>雙手</i>':'')+(w.exp?' <i class="exp">實驗</i>':'')+'</span>'+
+    '<span class="pis">'+esc(statStr(w))+(tagStr(w)?'　'+esc(tagStr(w)):'')+'</span>'+
+    '<span class="pip">'+w.cost+'點</span></button>';
+}
+function equipPickerHTML(ui){
+  const u=state.units[ui];
+  let html=shHead('加裝備')+'<div class="msh-body">';
+  html+=shownEquip().map(e=>{
+    const cnt=u.gear.filter(id=>id===e.id).length;
+    const dis=e.unique&&cnt>0;
+    return '<button class="pitem'+(dis?' dis':'')+'"'+(dis?'':' data-act="addg" data-u="'+ui+'" data-id="'+e.id+'"')+'>'+
+      '<span class="pin">'+esc(e.name)+(cnt?' <i>×'+cnt+'</i>':'')+(e.exp?' <i class="exp">實驗</i>':'')+'</span>'+
+      '<span class="pis">'+esc(e.note)+'</span>'+
+      '<span class="pip">'+(e.cost==='8*N'?'8×N':e.cost)+'點</span></button>';
+  }).join('');
+  html+='<div style="font-size:11px;color:#888;margin-top:8px">已加的裝備可在機體卡的裝備列點 × 移除。</div></div>';
+  return html;
+}
+function slotActionsHTML(ui,hp){
+  const u=state.units[ui]; const n=u.mounts[hp]; const mid=u.wmods[hp], mod=mid&&modById[mid];
+  let html=shHead(esc(n))+'<div class="msh-body actions">';
+  html+='<button class="actbtn" data-act="pickw" data-u="'+ui+'" data-hp="'+hp+'">換武器</button>';
+  if(mod) html+='<button class="actbtn" data-act="rmm" data-u="'+ui+'" data-hp="'+hp+'">移除改裝（'+esc(mod.name)+'）</button>';
+  else if(modCanAttach(u,hp,'overload')) html+='<button class="actbtn" data-act="addmod" data-u="'+ui+'" data-hp="'+hp+'">加改裝：過載復位 +10 點</button>';
+  html+='<button class="actbtn danger" data-act="rmw" data-u="'+ui+'" data-hp="'+hp+'">移除武器</button>';
+  html+='<button class="actbtn ghost" data-act="closesheet">取消</button></div>';
+  return html;
+}
+function menuHTML(){
+  return shHead('選單')+'<div class="msh-body actions">'+
+    '<button class="actbtn go" data-act="mhelper">⚔ 以此配置開戰</button>'+
+    '<button class="actbtn" data-act="mshare">複製分享連結</button>'+
+    '<button class="actbtn" data-act="preview">列印預覽（開／關）</button>'+
+    '<button class="actbtn" data-act="mprint">🖨 列印機體卡</button>'+
+    '<button class="actbtn" data-act="opts">可選規則・實驗內容</button>'+
+    '<button class="actbtn" data-act="msample">載入範例隊伍</button>'+
+    '<button class="actbtn danger" data-act="mclear">全部清空</button>'+
+    '<button class="actbtn ghost" data-act="closesheet">關閉</button></div>';
+}
+function optionsHTML(){
+  let html=shHead('可選規則／實驗')+'<div class="msh-body">';
+  html+=(DATA.options||[]).map(o=>
+    '<label class="optrow"><input type="checkbox" data-act="opt" data-id="'+o.id+'"'+(state.options[o.id]?' checked':'')+'>'+
+    '<span><b>'+esc(o.name)+'</b><i>'+esc(o.note)+'</i></span></label>'
+  ).join('');
+  html+='<label class="optrow"><input type="checkbox" data-act="exp"'+(state.expEnabled?' checked':'')+'>'+
+    '<span><b>實驗內容</b><i>顯示實驗武器/裝備（能量盾、頭部火神炮、各式護盾等）</i></span></label></div>';
+  return html;
+}
+function confirmHTML(msg, yesAct){
+  return shHead('確認')+'<div class="msh-body actions"><div class="confmsg">'+esc(msg)+'</div>'+
+    '<button class="actbtn danger" data-act="'+yesAct+'">確定</button>'+
+    '<button class="actbtn ghost" data-act="closesheet">取消</button></div>';
+}
+
+/* ---- 編組操作 ---- */
+function clearSlot(u,hp){
+  const n=u.mounts[hp]; if(!n) return;
+  const w=weaponByName[n];
+  if(w.twoHanded && (hp==='左肩臂'||hp==='右肩臂')){
+    if(u.mounts['左肩臂']===n){ u.mounts['左肩臂']=null; delete u.wmods['左肩臂']; }
+    if(u.mounts['右肩臂']===n){ u.mounts['右肩臂']=null; delete u.wmods['右肩臂']; }
+  }else{ u.mounts[hp]=null; delete u.wmods[hp]; }
+}
+function assignWeapon(u,hp,name){
+  const w=weaponByName[name];
+  if(w.twoHanded && (hp==='左肩臂'||hp==='右肩臂')){
+    clearSlot(u,'左肩臂'); clearSlot(u,'右肩臂');
+    u.mounts['左肩臂']=name; u.mounts['右肩臂']=name;
+  }else{
+    clearSlot(u,hp);
+    u.mounts[hp]=name;
+  }
+}
+function addGear(u,id){
+  const eq=equipById[id];
+  if(eq.unique && u.gear.includes(id)) return;
+  u.gear.push(id);
+  if(id==='rack'){ for(const k of ['背部','背部2']) if(u.wmods[k]) delete u.wmods[k]; }
+}
+
+/* ============================================================
+   事件
+   ============================================================ */
+document.addEventListener('click', e=>{
+  const el=e.target.closest&&e.target.closest('[data-act]');
+  if(!el) return;
+  const act=el.dataset.act;
+  const ui=el.dataset.u!=null?+el.dataset.u:null;
+  const u=ui!=null?state.units[ui]:null;
+
+  if(act==='closesheet'){ closeSheet(); return; }
+  if(act==='menu'){ openSheet(menuHTML()); return; }
+  if(act==='opts'){ openSheet(optionsHTML()); return; }
+
+  if(act==='budget'){
+    state.budget=el.dataset.b;
+    if(state.budget!=='deluxe') state.options.deluxe350=false; else state.options.deluxe350=true;
+    commit(); return;
+  }
+  if(act==='armor'){ u.armor=el.dataset.a; commit(); return; }
+  if(act==='s+'||act==='s-'){ u.structure=Math.min(10,Math.max(1,u.structure+(act==='s+'?1:-1))); commit(); return; }
+
+  if(act==='pickw'){ openSheet(weaponPickerHTML(ui, el.dataset.hp)); return; }
+  if(act==='assignw'){ assignWeapon(u, el.dataset.hp, el.dataset.n); closeSheet(); commit(); return; }
+  if(act==='slotact'){ openSheet(slotActionsHTML(ui, el.dataset.hp)); return; }
+  if(act==='rmw'){ clearSlot(u, el.dataset.hp); closeSheet(); commit(); return; }
+  if(act==='addmod'){ if(modCanAttach(u,el.dataset.hp,'overload')) u.wmods[el.dataset.hp]='overload'; closeSheet(); commit(); return; }
+  if(act==='rmm'){ delete u.wmods[el.dataset.hp]; closeSheet(); commit(); return; }
+
+  if(act==='pickg'){ openSheet(equipPickerHTML(ui)); return; }
+  if(act==='addg'){ addGear(u, el.dataset.id); save(); renderTop(); renderUnits(); renderSheet(); openSheet(equipPickerHTML(ui)); return; }
+  if(act==='rmg'){
+    const gi=+el.dataset.gi, id=u.gear[gi];
+    u.gear.splice(gi,1);
+    if(id==='rack' && !u.gear.includes('rack')){ u.mounts['背部2']=null; delete u.wmods['背部2']; }
+    commit(); return;
+  }
+
+  if(act==='preview'){ document.getElementById('previewBox').classList.toggle('open'); closeSheet(); return; }
+  if(act==='mprint'){ closeSheet(); setTimeout(()=>window.print(),120); return; }
+  if(act==='mshare'){
+    save();
+    const url=location.href;
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(()=>flashSheetMsg('已複製分享連結！'), ()=>openSheet(shHead('分享連結')+'<div class="msh-body"><div class="confmsg" style="word-break:break-all;font-size:12px">'+esc(url)+'</div></div>'));
+    }else openSheet(shHead('分享連結')+'<div class="msh-body"><div class="confmsg" style="word-break:break-all;font-size:12px">'+esc(url)+'</div></div>');
+    return;
+  }
+  if(act==='mhelper'){ save(); window.location.href='helper.html#f='+encodeState(state); return; }
+  if(act==='msample'){ openSheet(confirmHTML('以範例隊伍(白兵/遊隼/雷雲)覆蓋目前編組？','msample2')); return; }
+  if(act==='msample2'){ state=sampleState(); state=normalize(state); closeSheet(); commit(); return; }
+  if(act==='mclear'){ openSheet(confirmHTML('清空全部三台機體？','mclear2')); return; }
+  if(act==='mclear2'){ state=normalize({budget:state.budget,units:[]}); closeSheet(); commit(); return; }
+});
+
+function flashSheetMsg(msg){
+  openSheet(shHead('完成')+'<div class="msh-body"><div class="confmsg">'+esc(msg)+'</div><button class="actbtn ghost" data-act="closesheet" style="width:100%">關閉</button></div>');
+}
+
+/* 機體名稱輸入：不重繪整列避免失焦 */
+document.addEventListener('input', e=>{
+  const el=e.target;
+  if(el.dataset && el.dataset.act==='name'){
+    state.units[+el.dataset.u].name=el.value;
+    save(); renderTop(); renderSheet();
+  }
+});
+/* 可選規則／實驗 切換 */
+document.addEventListener('change', e=>{
+  const el=e.target; const act=el.dataset?el.dataset.act:null;
+  if(act==='opt'){
+    state.options[el.dataset.id]=el.checked;
+    if(el.dataset.id==='deluxe350'){
+      if(el.checked && state.budget!=='duel') state.budget='deluxe';
+      else if(!el.checked && state.budget==='deluxe') state.budget='team';
+    }
+    save(); renderTop(); renderUnits(); renderSheet(); openSheet(optionsHTML());
+  }else if(act==='exp'){
+    state.expEnabled=el.checked;
+    if(!el.checked){
+      for(const u of state.units){
+        const exq=new Set(DATA.equipment.filter(e=>e.exp).map(e=>e.id));
+        u.gear=u.gear.filter(id=>!exq.has(id));
+        for(const k of Object.keys(u.mounts)){
+          const n=u.mounts[k]; const w=n&&weaponByName[n];
+          if(w&&w.exp){ u.mounts[k]=null; delete u.wmods[k]; }
+        }
+      }
+    }
+    save(); renderTop(); renderUnits(); renderSheet(); openSheet(optionsHTML());
+  }
+});
+
+window.addEventListener('hashchange', ()=>{
+  const m=location.hash.match(/^#f=(.+)$/);
+  if(!m) return;
+  try{ state=normalize(decodeState(m[1])); renderAll(); }catch(e){}
+});
+
+document.addEventListener('gesturestart', e=>e.preventDefault());
+
+/* ============================================================
+   啟動
+   ============================================================ */
+boot();
+renderAll();
+</script>
+</body>
+</html>

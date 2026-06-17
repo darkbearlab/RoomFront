@@ -54,15 +54,16 @@ footer a{color:#777}
   </header>
 
   <div class="cards">
-    <a class="card builder" href="builder.html">
+    <a class="card builder" id="builderCard" href="builder.html">
       <div class="ico">🛠️</div>
       <h2>機體卡產生器 <span class="en">Builder</span></h2>
       <div class="desc">
-        拖拉武器與裝備、即時計價，編好整隊機體並<b>列印成 A4 機體卡</b>。
+        編好整隊機體、即時計價並<b>列印成 A4 機體卡</b>。
         完成後可「複製分享連結」或一鍵「以此配置開戰」把隊伍帶進對戰。
         <div style="margin-top:8px"><span class="tag">編組</span><span class="tag">計價</span><span class="tag">列印 A4</span></div>
+        <div style="margin-top:8px;font-size:12px;color:#777">版本：<a href="builder.html" data-stop>💻 電腦版（拖拉）</a> ・ <a href="builder-mobile.html" data-stop>📱 手機版（點選）</a></div>
       </div>
-      <span class="go">開始編組 →</span>
+      <span class="go" id="builderGo">開始編組 →</span>
     </a>
 
     <a class="card helper" href="helper.html">
@@ -86,7 +87,21 @@ footer a{color:#777}
 
   <footer>
     本作為粉絲自製規則，與 BANDAI SPIRITS 無關。30 Minutes Missions、30MM 為其所有者之商標。<br>
-    <a href="builder.html">產生器</a> ・ <a href="helper.html">對戰 Helper</a>
+    產生器：<a href="builder.html">電腦版</a> ・ <a href="builder-mobile.html">手機版</a>　|　<a href="helper.html">對戰 Helper</a>
   </footer>
+
+  <script>
+    // 觸控／窄螢幕：產生器主卡自動指向手機版（拖拉在手機不能用）
+    var touch = ('ontouchstart' in window) || navigator.maxTouchPoints>0 || window.matchMedia('(max-width:760px)').matches;
+    if(touch){
+      var card=document.getElementById('builderCard');
+      if(card) card.setAttribute('href','builder-mobile.html');
+      var go=document.getElementById('builderGo'); if(go) go.textContent='開始編組（手機版）→';
+    }
+    // 卡片內的「電腦版／手機版」連結不要觸發整張卡的跳轉
+    document.querySelectorAll('#builderCard a[data-stop]').forEach(function(a){
+      a.addEventListener('click', function(e){ e.stopPropagation(); });
+    });
+  </script>
 </body>
 </html>
