@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>《房間戰線》工具箱</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--red:#c01818;--ink:#111;--bg:#dedbd4;--panel:#f7f6f2}
+body{
+  font-family:"Microsoft JhengHei","Noto Sans TC","PingFang TC",sans-serif;
+  background:var(--bg);color:var(--ink);min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;
+  padding:28px 16px 48px;
+}
+.mono{font-family:Consolas,"Courier New",monospace}
+header{max-width:680px;width:100%;text-align:center;margin-bottom:26px}
+header .kicker{font-size:13px;letter-spacing:4px;color:#777}
+header h1{font-size:30px;letter-spacing:3px;margin:6px 0 8px}
+header p{font-size:14px;color:#555;line-height:1.7}
+.cards{display:flex;flex-direction:column;gap:16px;max-width:680px;width:100%}
+@media(min-width:620px){.cards{flex-direction:row}}
+.card{
+  flex:1;background:var(--panel);border:1px solid #888;border-top:6px solid #000;
+  border-radius:6px;padding:20px 18px 18px;display:flex;flex-direction:column;gap:10px;
+  text-decoration:none;color:inherit;box-shadow:0 2px 10px rgba(0,0,0,.12);
+  transition:transform .12s, box-shadow .12s;
+}
+.card:hover{transform:translateY(-3px);box-shadow:0 6px 18px rgba(0,0,0,.20)}
+.card .ico{font-size:34px;line-height:1}
+.card h2{font-size:21px;letter-spacing:1px;display:flex;align-items:baseline;gap:8px}
+.card h2 .en{font-size:12px;color:#888;letter-spacing:1px;font-weight:normal}
+.card .desc{font-size:13px;color:#555;line-height:1.65;flex:1}
+.card .go{align-self:flex-start;margin-top:4px;background:#111;color:#fff;font-weight:bold;
+  font-size:14px;padding:9px 16px;border-radius:7px;letter-spacing:1px}
+.card.helper{border-top-color:var(--red)}
+.card.helper .go{background:var(--red)}
+.flow{max-width:680px;width:100%;margin-top:22px;background:#fffdf7;border:1px dashed #c9b67a;
+  border-radius:6px;padding:14px 16px;font-size:13px;color:#5a4a1e;line-height:1.8}
+.flow b{color:#111}
+.flow .step{display:inline-block;background:#000;color:#fff;border-radius:50%;width:18px;height:18px;
+  text-align:center;line-height:18px;font-size:11px;margin-right:5px;font-family:Consolas,monospace}
+footer{max-width:680px;width:100%;margin-top:26px;text-align:center;font-size:11px;color:#999;line-height:1.7}
+footer a{color:#777}
+.tag{display:inline-block;font-size:11px;background:#eceae3;border:1px solid #bbb;border-radius:10px;
+  padding:1px 9px;color:#555;margin-right:5px}
+</style>
+</head>
+<body>
+  <header>
+    <div class="kicker">ROOM&nbsp;FRONT</div>
+    <h1>《房間戰線》工具箱</h1>
+    <p>30 Minutes Missions 粉絲自製桌上戰棋的兩件配套工具。<br>把模型從架上拿下來吧——客廳正在等一場戰爭。</p>
+  </header>
+
+  <div class="cards">
+    <a class="card builder" href="builder.html">
+      <div class="ico">🛠️</div>
+      <h2>機體卡產生器 <span class="en">Builder</span></h2>
+      <div class="desc">
+        拖拉武器與裝備、即時計價，編好整隊機體並<b>列印成 A4 機體卡</b>。
+        完成後可「複製分享連結」或一鍵「開戰 Helper」把隊伍帶進對戰。
+        <div style="margin-top:8px"><span class="tag">編組</span><span class="tag">計價</span><span class="tag">列印 A4</span></div>
+      </div>
+      <span class="go">開始編組 →</span>
+    </a>
+
+    <a class="card helper" href="helper.html">
+      <div class="ico">⚔️</div>
+      <h2>對戰 Helper <span class="en">Battle</span></h2>
+      <div class="desc">
+        《玩家操作 SOP》的可執行版。算好<b>丟幾顆、門檻幾、扣多少、熱多少</b>，
+        停下等你丟實體骰；維護你整隊的熱／結構／時間軌，操作自己機體時不用查規則。
+        <div style="margin-top:8px"><span class="tag">輪到你了</span><span class="tag">攻守結算</span><span class="tag">代骰可選</span></div>
+      </div>
+      <span class="go">進入對戰 →</span>
+    </a>
+  </div>
+
+  <div class="flow">
+    <span class="step">1</span>在 <b>機體卡產生器</b> 編好隊伍
+    <span class="step">2</span>按 <b>⚔ 開戰 Helper</b>（或複製分享連結）
+    <span class="step">3</span>在 <b>對戰 Helper</b> 直接開打——隊伍自動帶入，免重新輸入。<br>
+    <span style="color:#8a7a4a">手機網頁、單機、不連線；Helper 只管「你這隊」，對手由桌上口頭協調。</span>
+  </div>
+
+  <footer>
+    本作為粉絲自製規則，與 BANDAI SPIRITS 無關。30 Minutes Missions、30MM 為其所有者之商標。<br>
+    <a href="builder.html">產生器</a> ・ <a href="helper.html">對戰 Helper</a>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,1818 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>《房間戰線》對戰 Helper</title>
+<style>
+/* ============================================================
+   基礎（行動裝置直式・單手・大按鈕）
+   ============================================================ */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --red:#c01818; --ink:#111; --bg:#dedbd4; --panel:#f7f6f2;
+  --hot:#e8a300; --over:#c01818; --ok:#2f7d32; --line:#888;
+  --btn:#111; --btnText:#fff;
+}
+html,body{height:100%}
+body{
+  font-family:"Microsoft JhengHei","Noto Sans TC","PingFang TC",sans-serif;
+  background:var(--bg); color:var(--ink); overflow:hidden;
+  -webkit-text-size-adjust:100%;
+}
+.mono{font-family:"Cascadia Mono",Consolas,"Courier New",monospace}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+
+#root{display:flex;flex-direction:column;height:100%;max-width:560px;margin:0 auto;background:var(--bg)}
+#game{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+
+/* 頂列 */
+#top{
+  background:#111;color:#eee;display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  padding:7px 10px;border-bottom:3px solid #000;flex:0 0 auto;
+}
+#top .ttl{font-size:14px;letter-spacing:1px;font-weight:bold}
+#top .ptr{font-family:Consolas,monospace;font-size:13px;background:#222;border:1px solid #555;padding:2px 8px;border-radius:3px}
+#top .grow{flex:1}
+#top button{background:#333;color:#eee;border:1px solid #666;border-radius:4px;padding:5px 9px;font-size:12px}
+#top button.on{background:#2f7d32;border-color:#2f7d32;color:#fff}
+#top button.turn{background:#1f6f2a;border-color:#3a9; color:#fff;font-weight:bold}
+#top button.turn.lit{background:#2f9d3f;border-color:#fff}
+#top button.atk{background:#7a1414;border-color:#a33;font-weight:bold}
+#top button.atk.armed{background:#c01818;border-color:#fff}
+
+/* 全隊機體「紙卡」捲動區（預設展開、上下滑動總覽全隊） */
+#scroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px 8px 56px}
+
+/* ---- 機體紙卡（複用產生器印刷視覺：左熱條／2欄武器／結構格）---- */
+.pcard{position:relative;background:#fff;border:1.5px solid #000;border-radius:3px;margin-bottom:10px;display:flex;overflow:hidden}
+.pcard.active{box-shadow:0 0 0 3px var(--red),0 3px 12px rgba(0,0,0,.28)}
+.pcard.pick{box-shadow:0 0 0 2px #e8a300}
+.pcard.dead{opacity:.5}
+
+/* 熱條（左側垂直，0→cap+5；當前以橘/紅標記，過熱區斜紋） */
+.heatcol{flex:0 0 auto;display:flex;flex-direction:column-reverse;border-right:1.5px solid #000;background:#faf8f3}
+.hcell{width:24px;min-height:12px;flex:1;display:flex;align-items:center;justify-content:center;font-family:Consolas,monospace;font-size:8.5px;color:#aaa;border-top:1px solid #e6e4dc}
+.hcell.filled{color:#666;background:#f3ead2}
+.hcell.capline{border-top:2px solid #000}
+.hcell.ov{background:repeating-linear-gradient(45deg,rgba(192,24,24,.16) 0,rgba(192,24,24,.16) 3px,transparent 3px,transparent 7px)}
+.hcell.cur{background:#e8a300;color:#111;font-weight:bold}
+.hcell.cur.ovcur{background:var(--red);color:#fff}
+
+/* 卡身 */
+.pbody{flex:1 1 auto;min-width:0;padding:5px 7px 6px;display:flex;flex-direction:column;gap:4px}
+.phead{display:flex;align-items:center;gap:5px;border-bottom:2px solid #000;padding-bottom:3px;flex-wrap:wrap}
+.phead .pname{font-size:16px;font-weight:bold;letter-spacing:.5px}
+.phead .ppts{font-family:Consolas,monospace;font-size:10px;color:#555}
+.phead .parm{margin-left:auto;font-size:10px;white-space:nowrap}
+.phead .parm b{border:1px solid #000;padding:0 3px}
+.pstat{font-size:9.5px;font-weight:bold;padding:0 5px;border-radius:8px}
+.pstat.pose{background:#222;color:#fff}.pstat.over{background:var(--red);color:#fff}.pstat.low{background:#c0551c;color:#fff}.pstat.dead{background:#000;color:#fff}
+
+/* 結構格 */
+.srow{display:flex;align-items:center;gap:3px;flex-wrap:wrap}
+.srow .slab{font-size:9.5px;font-weight:bold;background:#000;color:#fff;padding:0 4px;letter-spacing:1px}
+.sbox{width:15px;height:15px;border:1.2px solid #000;position:relative;flex:0 0 auto;background:#fff}
+.sbox.full{background:#2f72b5}
+.sbox.lost::after{content:"";position:absolute;inset:1px;background:
+  linear-gradient(45deg,transparent 43%,#c01818 43%,#c01818 57%,transparent 57%),
+  linear-gradient(-45deg,transparent 43%,#c01818 43%,#c01818 57%,transparent 57%)}
+.sthr{width:2px;height:18px;background:var(--red);margin:0 1px;flex:0 0 auto}
+.snote{font-size:9px;color:#666;margin-left:3px}
+
+/* 武器：兩欄群組（同產生器印刷佈局） */
+.wgroups{display:grid;grid-template-columns:1fr 1fr;column-gap:6px;row-gap:2px}
+.wg{min-width:0}
+.wgt{display:flex;align-items:center;gap:4px;border-bottom:1.2px solid #000;font-size:10px;padding-bottom:1px}
+.wgt b{font-size:10.5px}
+.wgt .pl{margin-left:auto;font-size:8.5px;color:#666;display:flex;align-items:center;gap:3px}
+.wgt .pl .cb{width:9px;height:9px;border:1px solid #000;display:inline-block}
+.wgt .pl .cb.on{background:#000}
+.prow{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px;font-size:10px;padding:1px 0}
+.prow .wn{font-weight:bold;font-size:10.5px}
+.prow .wn.basic{text-decoration:underline;text-underline-offset:1px}
+.prow .wn.sig{color:#b8860b}
+.prow .wpt{font-family:Consolas,monospace;color:#555}
+.prow .wpt::after{content:"點";font-size:8px}
+.prow .wsd{font-family:Consolas,monospace;font-size:9px;color:#333}
+.prow .wtg{font-size:8.5px;color:#666}
+.prow .wstate{margin-left:auto;font-size:8.5px;font-weight:bold;padding:0 4px;border-radius:3px;flex:0 0 auto}
+.wstate.ready{background:#e3efe0;color:#2f7d32}.wstate.empty{background:#fbeaea;color:#c01818}.wstate.broken{background:#444;color:#fff}
+.prow.dead{opacity:.5}.prow.dead .wn{text-decoration:line-through}
+.prow.blank{color:#bbb;font-size:9px;min-height:14px}
+.pdots{display:inline-flex;gap:1px}
+.pdot{width:6px;height:6px;border:1px solid #000;border-radius:50%}.pdot.full{background:#000}
+
+/* 裝備列 */
+.gearrow{font-size:9.5px;border-top:1.2px solid #000;padding-top:2px;line-height:1.3}
+.gearrow .glab{font-size:9px;font-weight:bold;background:#000;color:#fff;padding:0 4px;margin-right:4px}
+.gearrow .gn{color:#555}
+
+/* 時間軌（卡內・橫向捲動，取代手寫筆記格） */
+.ptrack{border:1.2px solid #000;margin-top:1px}
+.ptt{font-size:9px;font-weight:bold;color:#555;padding:1px 5px;background:#f1efe8;display:flex;justify-content:space-between}
+.ptscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.ptgrid{display:inline-grid;grid-auto-flow:column;font-family:Consolas,monospace}
+.ptcol{display:flex;flex-direction:column;width:21px;border-right:1px solid #e0e0e0}
+.ptcol.now{background:#fff2c8}
+.ptcol.now .pgn{background:var(--red);color:#fff}
+.pgn{font-size:8px;text-align:center;color:#999;border-bottom:1px solid #ddd}
+.ptc{height:17px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:center;font-size:11px;position:relative}
+.ptc.arm{background:rgba(192,24,24,.05)}.ptc.mob{background:rgba(40,90,160,.05)}
+.ptc.hit{outline:2px solid #000;outline-offset:-2px;font-weight:bold}
+.ptc.flaw{color:var(--red);font-weight:bold}.ptc.full{font-weight:bold}.ptc.move{color:#2f72b5;font-weight:bold}.ptc.pass{color:#999}
+.ptlh{height:11px;font-size:7px;color:#a06b00;text-align:center;line-height:11px}
+
+/* 隊末小抄 */
+.cheatft{font-size:9.5px;color:#444;background:#f1efe8;border:1px solid #ccc;border-radius:4px;padding:6px 8px;line-height:1.6;margin-bottom:8px}
+.cheatft b{background:#000;color:#fff;padding:0 4px;margin-right:3px;font-size:9px}
+
+/* ---- 浮動決策面板（浮在紙卡之上，可收起只剩提示條）---- */
+#panel{
+  position:fixed;left:0;right:0;bottom:0;max-width:560px;margin:0 auto;z-index:40;
+  background:#fff;border-top:3px solid #000;border-radius:14px 14px 0 0;
+  box-shadow:0 -6px 22px rgba(0,0,0,.30);max-height:66vh;overflow-y:auto;
+}
+#panel .phandle{
+  position:sticky;top:0;z-index:2;background:#111;color:#eee;
+  display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:11px 11px 0 0;
+}
+#panel .phandle .pt{flex:1;font-size:12px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+#panel .phback{background:#3a3a3a;color:#fff;border:1px solid #777;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:bold;flex:0 0 auto}
+#panel .phback:active{background:#555}
+#panel .phmin{background:transparent;color:#bbb;font-size:15px;padding:4px 8px;flex:0 0 auto}
+#panel.min{max-height:none}
+#panel.min .pinner{display:none}
+#panel .pinner{padding:12px 12px calc(14px + env(safe-area-inset-bottom))}
+.pq{font-size:16px;font-weight:bold;margin-bottom:4px;line-height:1.35}
+.psub{font-size:12px;color:#555;margin-bottom:10px;line-height:1.4}
+.psub b{color:#111}
+.redlines{display:flex;flex-direction:column;gap:4px;background:#f3f1ea;border:1px solid #ccc;border-radius:5px;padding:7px 9px;margin-bottom:10px}
+.redlines .rl{font-size:12px;display:flex;gap:6px;align-items:center}
+.redlines .rl .ic{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.rl .ic.g{background:#2f7d32}.rl .ic.y{background:#e8a300}.rl .ic.r{background:#c01818}
+.rl b{font-weight:bold}
+
+.bgrid{display:flex;flex-direction:column;gap:8px}
+.bgrid.two{display:grid;grid-template-columns:1fr 1fr}
+.bigbtn{
+  width:100%;text-align:left;background:var(--btn);color:var(--btnText);
+  border-radius:9px;padding:14px 14px;font-size:16px;font-weight:bold;
+  display:flex;align-items:center;gap:10px;line-height:1.25;
+}
+.bigbtn:active{transform:translateY(1px)}
+.bigbtn .sm{font-size:11px;font-weight:normal;color:#cfcfcf;display:block;margin-top:2px}
+.bigbtn.ghost{background:#eceae3;color:#222;border:1px solid #aaa}
+.bigbtn.ghost .sm{color:#666}
+.bigbtn.warn{background:#7a1414}
+.bigbtn.go{background:#2f7d32}
+.bigbtn[disabled]{background:#d8d6cf;color:#999;border:1px solid #cac8c1;pointer-events:none}
+.bigbtn[disabled] .sm{color:#aaa}
+.bigbtn .tag{margin-left:auto;font-size:11px;font-weight:normal;color:#cfcfcf;flex:0 0 auto}
+
+/* 骰數提示大卡 */
+.dicecard{background:#111;color:#fff;border-radius:10px;padding:14px;margin-bottom:12px;text-align:center}
+.dicecard .dn{font-size:40px;font-weight:bold;font-family:Consolas,monospace;line-height:1}
+.dicecard .dlab{font-size:13px;color:#bbb;margin-top:4px}
+.dicecard .dthr{font-size:22px;font-weight:bold;margin-top:6px}
+.dicecard .dbreak{font-size:11px;color:#9a9a9a;margin-top:8px;line-height:1.5;border-top:1px solid #333;padding-top:7px}
+.dicecard.def{background:#16324a}
+.dicecard.mine{background:#143a18}
+
+/* 數字輸入器 */
+.numin{display:flex;align-items:center;justify-content:center;gap:14px;margin:6px 0 12px}
+.numin button{width:54px;height:54px;border-radius:50%;background:#eceae3;border:1px solid #999;font-size:26px;font-weight:bold;color:#111}
+.numin button:active{background:#ddd}
+.numin .nv{font-family:Consolas,monospace;font-size:38px;font-weight:bold;min-width:56px;text-align:center}
+.numin .ncap{font-size:11px;color:#888;display:block;text-align:center}
+
+.rollbtn{width:100%;background:#2f7d32;color:#fff;border-radius:9px;padding:13px;font-size:16px;font-weight:bold;margin-bottom:8px}
+.rollbtn.alt{background:#4a4a8a}
+
+.result{background:#f3f1ea;border:1px solid #bbb;border-radius:6px;padding:10px;font-size:14px;line-height:1.5;margin-bottom:10px}
+.result b{font-weight:bold}
+.result .big{font-size:18px;font-weight:bold}
+.result.hit{background:#e3efe0;border-color:#9ec99a}
+.result.miss{background:#f0eeea}
+.result.bad{background:#fbeaea;border-color:#e3b4b4}
+.say{background:#fffbe6;border:1px dashed #d8b400;border-radius:6px;padding:8px 10px;font-size:13px;margin-bottom:10px}
+.say b{color:#a06b00}
+
+/* 載入畫面 */
+#load{padding:18px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;height:100%}
+#load h1{font-size:20px;letter-spacing:1px}
+#load p{font-size:13px;color:#444;line-height:1.6}
+#load textarea{width:100%;min-height:110px;border:1px solid #888;border-radius:6px;padding:10px;font-family:Consolas,monospace;font-size:12px;resize:vertical}
+#load .row{display:flex;gap:8px;flex-wrap:wrap}
+#load button{background:#111;color:#fff;border-radius:8px;padding:12px 16px;font-size:15px;font-weight:bold}
+#load button.ghost{background:#eceae3;color:#222;border:1px solid #999}
+#load .err{color:#c01818;font-size:13px;font-weight:bold;min-height:18px}
+#load .ok{color:#2f7d32}
+#load .hint{font-size:12px;color:#777;background:#f3f1ea;border-radius:6px;padding:10px;line-height:1.6}
+
+.hidden{display:none !important}
+.spacer{height:8px}
+</style>
+</head>
+<body>
+<div id="root">
+
+  <!-- ============ 載入畫面 ============ -->
+  <div id="load">
+    <h1>《房間戰線》對戰 Helper</h1>
+    <p>貼上「機體卡產生器」的<b>分享連結</b>，或整段 <span class="mono">#f=…</span> 字串，載入你的整隊機體。Helper 只管你這隊——對手那邊由他自己開或心算。</p>
+    <textarea id="shareIn" placeholder="在此貼上分享連結 / #f=... 字串"></textarea>
+    <div class="err" id="loadErr"></div>
+    <div class="row">
+      <button id="btnLoad">載入隊伍</button>
+      <button id="btnSampleLoad" class="ghost">載入範例（白兵/遊隼/雷雲）</button>
+    </div>
+    <div class="hint">
+      <b>提醒</b><br>
+      • 骰子留給你：Helper 算「丟幾顆、門檻幾」，停下等你丟實體骰、輸入過了幾顆。（要代骰可在頂列開「代骰」）<br>
+      • 沒你事的格自動跳過，只在你有機體能決策或有命中格到期時才停下。<br>
+      • 平常安靜顯示狀態；要決策時才從底部跳出問一句、給幾個大按鈕。
+    </div>
+  </div>
+
+  <!-- ============ 對戰主畫面 ============ -->
+  <div id="game" class="hidden">
+    <div id="top">
+      <a class="ttl" href="index.html" style="color:inherit;text-decoration:none" title="回入口">⌂ 房間戰線</a>
+      <span class="ptr" id="ptrLab">格 1</span>
+      <button id="btnTurn" class="turn">輪到你了</button>
+      <button id="btnAtk" class="atk">被攻擊</button>
+      <span class="grow"></span>
+      <button id="btnAuto">代骰：關</button>
+      <button id="btnReset">重載</button>
+    </div>
+    <div id="scroll"></div>
+    <div id="panel">
+      <div class="phandle" id="phandle">
+        <button class="phback" id="phback" data-act="undo">← 上一步</button>
+        <span class="pt" id="phtitle">操作</span>
+        <button class="phmin" id="phmin">▾</button>
+      </div>
+      <div class="pinner" id="panelInner"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   遊戲數據（與機體卡產生器同源・原樣搬入，避免兩份數值漂移）
+   ============================================================ */
+const DATA = {
+  "chassis": { "evade": 4, "baseHeatCap": 10, "coverBonus": 2 },
+  "structureCost": [3,3,3,3,5,5,8,8,12,12],
+  "budgets": { "duel": {"total":100,"unitCap":100}, "team": {"total":250,"unitCap":null}, "deluxe": {"total":350,"unitCap":null} },
+  "hardpoints": ["左肩臂","右肩臂","左腿","右腿","背部"],
+  "options": [
+    { "id":"freeStruct5", "name":"免費基礎結構 5", "affectsCost":true },
+    { "id":"partLoss", "name":"部位破壞", "default":true },
+    { "id":"physicalRemoval", "name":"實體拆件" },
+    { "id":"deluxe350", "name":"3v3 豪華 350" }
+  ],
+  "armors": ["複合","陶瓷","反射"],
+  "armorRing": { "複合": {"blocks":"化學能","weak":"能量"}, "陶瓷": {"blocks":"動能","weak":"化學能"}, "反射": {"blocks":"能量","weak":"動能"} },
+  "equipment": [
+    { "id":"thruster", "name":"推進器", "cost":8 },
+    { "id":"flight", "name":"飛行組件", "cost":12 },
+    { "id":"heatsink", "name":"散熱器", "cost":"8*N", "stackable":true },
+    { "id":"rack", "name":"擴充掛架", "cost":12, "unique":true },
+    { "id":"smoke", "name":"煙霧彈發射器", "cost":8, "stackable":true },
+    { "id":"vulcan", "name":"頭部火神炮", "cost":6, "exp":true, "stackable":true },
+    { "id":"shield_arm", "name":"臂盾", "cost":6, "exp":true },
+    { "id":"shield_big", "name":"大盾", "cost":18, "exp":true },
+    { "id":"shield_heavy", "name":"重盾", "cost":24, "exp":true, "stackable":true }
+  ],
+  "mods": [
+    { "id":"overload", "name":"過載復位", "cost":10, "excludeTags":["格鬥"], "excludeRackBack":true, "badge":"復位" }
+  ],
+  "weapons": [
+    { "name":"據點型能量盾", "type":"能量", "action":"全系", "pow":"—", "slots":"維2+反1", "heat":"2+2+3", "cost":14, "exp":true, "shield":true, "tags":[] },
+    { "name":"機動型能量盾", "type":"能量", "action":"武裝", "pow":"—", "slots":"掩1+反1", "heat":"2+3", "cost":10, "exp":true, "shield":true, "tags":[] },
+    { "name":"隨身手槍", "type":"動能", "action":"武裝", "acc":4, "pow":3, "slots":"2(1)", "heat":"0/0", "near":"優1", "far":"劣3", "cost":4, "tags":["基本"] },
+    { "name":"突擊步槍", "type":"動能", "action":"武裝", "acc":5, "pow":5, "slots":"3(1)", "heat":"0/1", "near":"", "far":"優1", "cost":15, "tags":[] },
+    { "name":"散彈槍", "type":"動能", "action":"武裝", "acc":5, "pow":6, "slots":"3(1)", "heat":"0/1", "near":"優2", "far":"劣3", "cost":16, "tags":[] },
+    { "name":"光束步槍", "type":"能量", "action":"武裝", "acc":5, "pow":6, "slots":"3(1)", "heat":"2/1", "near":"", "far":"", "cost":18, "tags":[] },
+    { "name":"狙擊步槍", "type":"動能", "action":"全系", "acc":5, "pow":8, "slots":"5(1)", "heat":"0/1", "near":"劣2", "far":"優2", "cost":25, "tags":[] },
+    { "name":"重機槍", "type":"動能", "action":"全系", "acc":3, "pow":3, "slots":"7(1-5)", "heat":"每發0/1", "near":"劣1", "far":"優1", "cost":22, "tags":["連射"] },
+    { "name":"火箭砲", "type":"化學能", "action":"全系", "acc":5, "pow":"著8/濺4-3", "slots":"4(1)", "heat":"1/2", "cost":28, "tags":["AoE","裝填(2)"] },
+    { "name":"拋棄式火箭筒", "type":"化學能", "action":"全系", "acc":6, "pow":"著7/濺4-1", "slots":"1(1)", "heat":"0/1", "near":"", "far":"", "cost":10, "tags":["AoE","彈藥(1)","不可裝填","無破綻"], "ammo":1 },
+    { "name":"榴彈發射器", "type":"化學能", "action":"武裝", "acc":5, "pow":"著5/濺3-2", "slots":"2(1)", "heat":"0/1", "near":"", "far":"劣1", "cost":14, "tags":["AoE","彈藥(4)","不可裝填"], "ammo":4 },
+    { "name":"迫擊砲", "type":"化學能", "action":"全系", "acc":5, "pow":"著6/濺3-2", "slots":"3(1)", "heat":"0/2", "cost":22, "tags":["AoE","曲射限定","彈藥(6)","不可裝填","最小射程"], "ammo":6 },
+    { "name":"反裝甲飛彈", "type":"化學能", "action":"武裝", "acc":5, "pow":10, "slots":"3(3)", "heat":"0/2", "near":"", "far":"優1", "cost":28, "tags":["鎖定","彈藥(2)","裝填(2)","最小射程"], "ammo":2 },
+    { "name":"火焰發射器", "type":"化學能", "action":"武裝", "acc":6, "pow":2, "slots":"2(1)", "heat":"1/3", "near":"優2", "far":"X", "cost":18, "tags":["近接限定","彈藥(4)","裝填(1)"], "ammo":4 },
+    { "name":"光束手槍", "type":"能量", "action":"武裝", "acc":4, "pow":4, "slots":"2(1)", "heat":"1/1", "near":"優1", "far":"劣2", "cost":8, "tags":["基本"] },
+    { "name":"高出力光束步槍", "type":"能量", "action":"全系", "acc":5, "pow":8, "slots":"4(1)", "heat":"4/1", "near":"", "far":"優1", "cost":24, "tags":[] },
+    { "name":"脈衝雷射投射器", "type":"能量", "action":"全系", "acc":4, "pow":"3/發", "slots":"5(2-4)", "heat":"每發1/1", "near":"劣1", "far":"優1", "cost":26, "tags":["線命中"] },
+    { "name":"高出力雷射炮", "type":"能量", "action":"全系", "acc":5, "pow":"6/發", "slots":"6(3-5)", "heat":"每發2/1", "near":"劣1", "far":"優1", "cost":34, "tags":["線命中","貫通","架設"] },
+    { "name":"光束軍刀", "type":"能量", "action":"全系", "melee":6, "pow":7, "slots":"全2(1)", "heat":"2/0", "cost":18, "tags":["格鬥","切割"] },
+    { "name":"長柄槍", "type":"動能", "action":"全系", "melee":5, "pow":7, "slots":"全3(2)", "heat":"0/0", "cost":16, "tags":["格鬥","距離壓制"] },
+    { "name":"鋼鐵大劍", "type":"動能", "action":"全系", "melee":4, "pow":10, "slots":"全3(2)", "heat":"0/0", "cost":20, "tags":["格鬥","雙手"], "twoHanded":true },
+    { "name":"流星錘", "type":"動能", "action":"全系", "melee":3, "pow":11, "slots":"全4(3)", "heat":"0/0", "cost":19, "tags":["格鬥","纏繞"] },
+    { "name":"樁打機", "type":"化學能", "action":"全系", "melee":2, "pow":12, "slots":"全3(1)", "heat":"1/0", "cost":24, "tags":["格鬥","雙手","裝填(1)"], "twoHanded":true },
+    { "name":"爆破矛", "type":"化學能", "action":"全系", "melee":4, "pow":9, "slots":"全3(2)", "heat":"1/0", "cost":20, "tags":["格鬥","距離壓制","裝填(1,僅命中後)"] },
+    { "name":"高出力光束軍刀", "type":"能量", "action":"全系", "melee":6, "pow":9, "slots":"全2(1)", "heat":"3/0", "cost":30, "tags":["格鬥","切割"] },
+    { "name":"超大型劍", "type":"動能", "action":"全系", "melee":4, "pow":12, "slots":"全3(2)", "heat":"0/0", "cost":34, "tags":["格鬥","雙手","切割"], "twoHanded":true },
+    { "name":"動力連枷", "type":"動能", "action":"全系", "melee":3, "pow":13, "slots":"全4(3)", "heat":"0/0", "cost":30, "tags":["格鬥","纏繞"] },
+    { "name":"雙聯樁打機", "type":"化學能", "action":"全系", "melee":2, "pow":12, "slots":"全3(1)", "heat":"1/0", "cost":36, "tags":["格鬥","雙手","彈藥(2)","裝填(1)"], "twoHanded":true, "ammo":2 }
+  ],
+  "sampleForce": [
+    { "name":"白兵", "armor":"複合", "structure":6,
+      "mounts": {"右肩臂":["突擊步槍"], "左肩臂":["光束軍刀"], "背部":["火箭砲"]},
+      "gear": ["推進器","散熱器"] },
+    { "name":"遊隼", "armor":"反射", "structure":5,
+      "mounts": {"右肩臂":["狙擊步槍"], "左腿":["散彈槍"], "左肩臂":["隨身手槍"]},
+      "gear": ["飛行組件","推進器","散熱器"] },
+    { "name":"雷雲", "armor":"複合", "structure":6,
+      "mounts": {"背部":["火箭砲","重機槍"], "右肩臂":["突擊步槍"], "左肩臂":["隨身手槍"]},
+      "gear": ["擴充掛架","散熱器"] }
+  ]
+};
+
+/* ============================================================
+   產生器同源工具（decodeState / statStr / tagStr / heatCap …）
+   ============================================================ */
+const SLOT_KEYS = ['左肩臂','右肩臂','左腿','右腿','背部','背部2'];
+const weaponByName = Object.fromEntries(DATA.weapons.map(w=>[w.name,w]));
+const equipById = Object.fromEntries(DATA.equipment.map(e=>[e.id,e]));
+const modById = Object.fromEntries((DATA.mods||[]).map(m=>[m.id,m]));
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function decodeState(s){
+  const b64 = s.replace(/-/g,'+').replace(/_/g,'/');
+  return JSON.parse(decodeURIComponent(escape(atob(b64))));
+}
+function statStr(w){
+  const hit = (w.melee!=null) ? '近'+w.melee : '命'+w.acc;
+  let dist='';
+  if(w.melee==null){
+    const seg=[];
+    if(w.near) seg.push('近'+(w.near==='X'?'✕':w.near));
+    if(w.far)  seg.push('遠'+(w.far==='X'?'✕':w.far));
+    if(seg.length) dist=' ['+seg.join('/')+']';
+  }
+  return hit+dist+' 威'+w.pow+' 格'+w.slots+' 熱'+String(w.heat).replace('/','÷');
+}
+function tagStr(w){
+  const t=[...(w.tags||[])];
+  if(w.action==='全系' && !String(w.slots).startsWith('全')) t.unshift('全系');
+  return t.join('·');
+}
+function heatCapOf(u){ return DATA.chassis.baseHeatCap + 3*(u.gear||[]).filter(id=>id==='heatsink').length; }
+function emptyUnit(){
+  return { name:'', armor:'複合', structure:5,
+    mounts:{左肩臂:null,右肩臂:null,左腿:null,右腿:null,背部:null,背部2:null}, gear:[], wmods:{} };
+}
+function normalize(st){
+  const out = { budget: DATA.budgets[st&&st.budget] ? st.budget : 'team', options:{}, expEnabled: !!(st&&st.expEnabled), units: [] };
+  for(const o of DATA.options) out.options[o.id]= o.default===true;
+  if(st && st.options) for(const o of DATA.options) if(typeof st.options[o.id]==='boolean') out.options[o.id]=st.options[o.id];
+  if(out.options.deluxe350 && out.budget!=='duel') out.budget='deluxe';
+  const n = Math.max(3, (st&&st.units&&st.units.length)||3);
+  for(let i=0;i<n;i++){
+    const raw=(st&&st.units&&st.units[i])||{};
+    const u=emptyUnit();
+    u.name = typeof raw.name==='string' ? raw.name.slice(0,24) : '';
+    u.armor = DATA.armors.includes(raw.armor)?raw.armor:'複合';
+    u.structure = Math.min(10,Math.max(1, parseInt(raw.structure,10)||5));
+    for(const k of SLOT_KEYS){ const v=raw.mounts&&raw.mounts[k]; if(v&&weaponByName[v]) u.mounts[k]=v; }
+    if(Array.isArray(raw.gear)) u.gear = raw.gear.filter(id=>equipById[id]);
+    if(!u.gear.includes('rack')) u.mounts['背部2']=null;
+    if(raw.wmods) for(const [k,mid] of Object.entries(raw.wmods)) if(modById[mid]&&u.mounts[k]) u.wmods[k]=mid;
+    out.units.push(u);
+  }
+  return out;
+}
+function sampleState(){
+  const units = DATA.sampleForce.map(s=>{
+    const u=emptyUnit(); u.name=s.name; u.armor=s.armor; u.structure=s.structure;
+    for(const [hp,arr] of Object.entries(s.mounts)){
+      if(hp==='背部'){ u.mounts['背部']=arr[0]||null; u.mounts['背部2']=arr[1]||null; }
+      else u.mounts[hp]=arr[0]||null;
+    }
+    u.gear = s.gear.map(n=>DATA.equipment.find(e=>e.name===n).id);
+    return u;
+  });
+  return { budget:'team', units };
+}
+/* 雙手武器佔位：右肩臂為佔位，不重複列 */
+function unitWeaponEntries(u){
+  const out=[];
+  for(const k of SLOT_KEYS){
+    const n=u.mounts[k]; if(!n) continue;
+    const w=weaponByName[n];
+    if(k==='右肩臂' && w.twoHanded && u.mounts['左肩臂']===n) continue;
+    out.push([k,w]);
+  }
+  return out;
+}
+
+/* ============================================================
+   武器規格解析（佔格/命中格/系/熱/距離/剋制）
+   ============================================================ */
+function parseSlots(w){
+  let s=String(w.slots);
+  const full = s.startsWith('全') || w.action==='全系';
+  s=s.replace('全','');
+  const m=s.match(/^(\d+)\((\d+)(?:-(\d+))?\)$/);
+  if(!m) return null;                       // 護盾等特殊
+  const total=+m[1], hs=+m[2], he=m[3]?+m[3]:+m[2];
+  const hitOff=[]; for(let i=hs;i<=he;i++) hitOff.push(i);   // 1-indexed（行動內第幾格）
+  return { full, total, hitOff };
+}
+function heatVals(w){
+  let h=String(w.heat); const per=h.includes('每發'); h=h.replace('每發','');
+  const m=h.split('/');
+  return { self: parseInt(m[0])||0, enemy: parseInt(m[1])||0, perShot:per };
+}
+/* 距離欄 "優1"/"劣3"/"X" → 步階（正=優勢） */
+function distSteps(val){
+  if(!val) return 0;
+  if(val==='X') return -99;                 // 不可攻擊
+  const m=String(val).match(/^(優|劣)(\d+)$/);
+  if(!m) return 0;
+  return (m[1]==='優'?1:-1)*(+m[2]);
+}
+function reloadNeed(w){
+  for(const t of (w.tags||[])){
+    const m=String(t).match(/^裝填\((\d+)/);
+    if(m) return +m[1];
+  }
+  return 0;
+}
+function reloadOnlyAfterHit(w){ return (w.tags||[]).some(t=>/裝填\(.*僅命中後/.test(t)); }
+function hasTag(w,t){ return (w.tags||[]).includes(t); }
+function isMelee(w){ return hasTag(w,'格鬥'); }
+function powBase(w){
+  // "著8/濺4-3" → 著彈威力 8 ; "3/發" → 3 ; 數字 → 數字
+  let p=String(w.pow);
+  let m=p.match(/著(\d+)/); if(m) return +m[1];
+  m=p.match(/^(\d+)/); if(m) return +m[1];
+  return 0;
+}
+function powDisplaySplash(w){
+  const m=String(w.pow).match(/濺(\d+)-(\d+)/);
+  return m? {acc:+m[1], pow:+m[2]} : null;
+}
+function ringResult(weaponType, armor){
+  const r=DATA.armorRing[armor];
+  if(r.weak===weaponType) return {step:+1, label:'被剋→你優勢 4+'};   // 裝甲弱點：攻方優勢
+  if(r.blocks===weaponType) return {step:-1, label:'裝甲剋它→你劣勢 6+'};
+  return {step:0, label:'平 5+'};
+}
+/* 優劣步階 → 骰池與門檻（最多一階，溢出改骰數） */
+function resolvePool(baseDice, steps){
+  let dice=baseDice, thr=5;
+  if(steps>0){ thr=4; dice+=(steps-1); }
+  else if(steps<0){ thr=6; dice-=((-steps)-1); }
+  return { dice:Math.max(0,dice), thr };
+}
+function thrName(thr){ return thr+'+'; }
+
+/* ============================================================
+   對戰狀態
+   ============================================================ */
+let BS = null;   // battle state
+let UI = null;   // 介面流程狀態
+
+function makeBattleUnit(u, idx){
+  const cap=heatCapOf(u);
+  const bu={
+    idx, name:u.name||('機體'+(idx+1)), armor:u.armor, base:u,
+    maxStructure:u.structure, structure:u.structure,
+    heat:0, heatCap:cap,
+    posture:'站',                 // 站/蹲/滯空
+    signature: u.signature && weaponByName[u.signature] ? u.signature : null,
+    weapons:[],                   // 動態武器狀態
+    track:[],                     // track[g]={m,w,heat}
+    attacks:[],                   // 攻擊宣告（含命中格）
+    dead:false,
+    gridDone:-1,                  // 本格已處理到的指針（避免重複停）
+  };
+  for(const [hp,w] of unitWeaponEntries(u)){
+    const need=reloadNeed(w);
+    bu.weapons.push({
+      hp, name:w.name, w,
+      broken:false,
+      ammo: w.ammo!=null ? w.ammo : null,         // 剩餘彈藥（null=不限）
+      loadedReady: true,                          // 是否已裝填可擊發
+      reloadDone: need? need : 0,                 // 已完成裝填次數（need 制）
+      reloadNeed: need,
+    });
+  }
+  return bu;
+}
+function trackLen(){ return BS.units.length>1 ? 50 : 40; }
+function cell(bu,g){
+  if(!bu.track[g]) bu.track[g]={m:null,w:null,heat:null};
+  return bu.track[g];
+}
+function sysFree(bu,g,sys){ const c=cell(bu,g); return !(sys==='m'?c.m:c.w); }
+function aliveUnits(){ return BS.units.filter(u=>!u.dead); }
+
+/* 是否有「未結算的命中格」到期於本格 */
+function dueHitsAt(bu,g){
+  const out=[];
+  for(const a of bu.attacks){
+    for(const hg of a.hitGrids){
+      if(hg===g && !a.resolved.has(hg)) out.push({a, hg});
+    }
+  }
+  return out;
+}
+/* 本格是否「有事」：命中格到期 或 至少一系空（可下新指令） */
+function unitBusyAt(bu,g){
+  if(bu.dead) return false;
+  if(dueHitsAt(bu,g).length) return true;
+  if(g<=bu.gridDone) return false;            // 本格已決策過
+  return sysFree(bu,g,'m') || sysFree(bu,g,'w');
+}
+
+/* ============================================================
+   啟動 / 載入
+   ============================================================ */
+function startBattle(genState){
+  const st=normalize(genState);
+  BS={ units:[], pointer:1, auto:false, options:st.options };
+  st.units.forEach((u,i)=>{ if(!isEmptyGen(u)) BS.units.push(makeBattleUnit(u, BS.units.length)); });
+  if(!BS.units.length){ throw new Error('這串連結沒有有效機體'); }
+  BS.units.forEach((u,i)=>u.idx=i);
+  document.getElementById('load').classList.add('hidden');
+  document.getElementById('game').classList.remove('hidden');
+  UI={ selUnit:0, flow:null, history:[] };
+  goClean();                 // 預設淨空，等玩家按「輪到你了」或「被攻擊」
+}
+/* 淨空：收起浮動面板，只剩紙卡（並清空本回合的復原堆疊）*/
+function goClean(){
+  UI.flow=null; UI.history=[];
+  if(typeof renderGame==='function' && BS) renderGame();
+  const tb=document.getElementById('btnTurn'); if(tb) tb.classList.add('lit');
+}
+
+/* ============================================================
+   復原（上一步／取消）：每個前進步驟前對整個 BS 拍快照
+   ============================================================ */
+function cloneCell(c){ return c? {m:c.m?{...c.m}:null, w:c.w?{...c.w}:null, heat:c.heat} : c; }
+function cloneBS(){
+  const units=BS.units.map(bu=>{
+    const weapons=bu.weapons.map(w=>({...w}));            // w(→DATA) 共用
+    const attacks=bu.attacks.map(a=>({...a, resolved:new Set(a.resolved), hitGrids:[...a.hitGrids],
+      situation:a.situation?{...a.situation}:a.situation}));
+    attacks.forEach((na,i)=>{ na.ws=weapons.find(w=>w.hp===bu.attacks[i].ws.hp); }); // 重連 att.ws
+    const track=bu.track.map(cloneCell);
+    return {...bu, weapons, attacks, track};
+  });
+  return {...BS, units};
+}
+function cloneFlow(f, bs){
+  if(!f) return null;
+  const g={...f};
+  if(f.situation) g.situation={...f.situation};
+  if(f.declared) g.declared={...f.declared};
+  if(f.parent) g.parent=cloneFlow(f.parent, bs);
+  if(f.unit!=null && bs.units[f.unit]){
+    const bu=bs.units[f.unit];
+    if(f.ws) g.ws=bu.weapons.find(w=>w.hp===f.ws.hp)||f.ws;
+    if(f.att) g.att=bu.attacks.find(a=>a.id===f.att.id)||null;
+    if(f.a) g.a=bu.attacks.find(a=>a.id===f.a.id)||null;
+    if(f.due) g.due=f.due.map(d=>({a:bu.attacks.find(a=>a.id===d.a.id)||null, hg:d.hg}));
+  }
+  return g;
+}
+function pushHist(){
+  if(!BS||!UI) return;
+  UI.history=UI.history||[];
+  const bs=cloneBS();
+  UI.history.push({ bs, flow:cloneFlow(UI.flow,bs),
+    saved:UI._savedFlow?cloneFlow(UI._savedFlow,bs):null, focus:UI._lastFocus });
+  if(UI.history.length>80) UI.history.shift();
+}
+function undoHist(){
+  if(!UI.history||!UI.history.length){ goClean(); return; }
+  const s=UI.history.pop();
+  BS=s.bs; UI.flow=s.flow; UI._savedFlow=s.saved; UI._lastFocus=s.focus;
+  renderGame();
+}
+/* 下一步「上一步」會不會直接回到淨空（用來決定按鈕字樣 取消／上一步）*/
+function undoLeadsToClean(){
+  const h=UI&&UI.history;
+  return !h || !h.length || !h[h.length-1].flow;
+}
+function isEmptyGen(u){
+  return !u.name && (!u.gear||!u.gear.length) && SLOT_KEYS.every(k=>!u.mounts[k]);
+}
+
+document.getElementById('btnLoad').addEventListener('click', ()=>{
+  const t=document.getElementById('shareIn').value.trim();
+  const err=document.getElementById('loadErr'); err.textContent='';
+  if(!t){ err.textContent='請先貼上分享連結或字串。'; return; }
+  let str=t;
+  const m=t.match(/#f=([^\s]+)/); if(m) str=m[1];
+  let gs;
+  try{ gs=decodeState(str); }catch(e){ err.textContent='無法解碼：請確認貼上的是產生器「複製分享連結」的內容。'; return; }
+  try{ startBattle(gs); }catch(e){ err.textContent=e.message||'載入失敗'; }
+});
+document.getElementById('btnSampleLoad').addEventListener('click', ()=>{
+  try{ startBattle(sampleState()); }catch(e){ document.getElementById('loadErr').textContent=e.message; }
+});
+let _resetArm=false, _resetTimer=null;
+function doReset(){
+  document.getElementById('game').classList.add('hidden');
+  document.getElementById('load').classList.remove('hidden');
+  BS=null; UI=null;
+}
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  const b=document.getElementById('btnReset');
+  if(_resetArm){ clearTimeout(_resetTimer); _resetArm=false; b.textContent='重載'; doReset(); return; }
+  _resetArm=true; b.textContent='確定重載？';
+  _resetTimer=setTimeout(()=>{ _resetArm=false; b.textContent='重載'; }, 2500);
+});
+document.getElementById('btnAuto').addEventListener('click', ()=>{
+  BS.auto=!BS.auto;
+  const b=document.getElementById('btnAuto');
+  b.textContent='代骰：'+(BS.auto?'開':'關'); b.classList.toggle('on',BS.auto);
+});
+/* 浮動面板收起／展開（露出底下的紙卡） */
+document.getElementById('phmin').addEventListener('click', ()=>{
+  const p=document.getElementById('panel'); const min=p.classList.toggle('min');
+  document.getElementById('phmin').textContent=min?'▴':'▾';
+  syncPanelPad();
+});
+/* 輪到你了：玩家按此處理我方這格（找下一個要停的格、入口一）*/
+document.getElementById('btnTurn').addEventListener('click', ()=>{
+  if(!BS) return;
+  const f=UI.flow;
+  if(f && f.kind!=='end'){          // 已在某流程中：把面板叫回（若被收起/淨空）
+    const p=document.getElementById('panel'); p.classList.remove('hidden','min');
+    document.getElementById('phmin').textContent='▾'; renderPanel(); return;
+  }
+  pushHist();                        // 記錄淨空狀態，供首步「取消」
+  advanceToNextStop();
+});
+/* 被攻擊：對手宣告的攻擊打到我這格時，由我按此啟動守方結算 */
+document.getElementById('btnAtk').addEventListener('click', ()=>{
+  if(!BS) return;
+  const f=UI.flow;
+  if(f && (f.kind==='defPick'||f.kind==='def'||f.kind==='defKind')) return; // 已在守方流程
+  pushHist();                        // 記錄按下「被攻擊」前的狀態，供首步「取消」
+  UI._savedFlow = (f && f.kind!=='defPick') ? f : UI._savedFlow;
+  UI.flow={kind:'defPick', choices: aliveUnits().map(u=>u.idx)};
+  renderGame();
+});
+
+/* ============================================================
+   指針推進：找下一個「要停下找你」的格
+   ============================================================ */
+function advanceToNextStop(initial){
+  const len=trackLen();
+  while(BS.pointer<=len){
+    const g=BS.pointer;
+    // 套用本格效果（熱：移動/空過/擊發自熱）——只在第一次經過時
+    const stops = aliveUnits().filter(u=>unitBusyAt(u,g));
+    if(stops.length){ enterGrid(g); return; }
+    BS.pointer++;
+  }
+  // 軌道走完
+  UI.flow={kind:'end'};
+  renderGame();
+}
+
+/* 進入某格：先處理到期命中格（入口二），再處理可決策機（入口一） */
+function enterGrid(g){
+  // 命中格優先
+  for(const bu of aliveUnits()){
+    const due=dueHitsAt(bu,g);
+    if(due.length){
+      UI.flow={kind:'resolveHit', unit:bu.idx, due, g};
+      UI.selUnit=bu.idx;
+      renderGame();
+      return;
+    }
+  }
+  // 否則：列出有事的機讓你選一台（入口一）
+  const actable = aliveUnits().filter(u=>unitBusyAt(u,g));
+  if(!actable.length){ BS.pointer=g+1; goClean(); return; }   // 本格處理完→淨空，等下次「輪到你了」
+  if(actable.length===1){
+    UI.flow={kind:'unitTurn', unit:actable[0].idx, g, declared:{m:false,w:false}};
+  }else{
+    UI.flow={kind:'pickUnit', g, choices:actable.map(u=>u.idx)};
+  }
+  // 同步選到面板上的機
+  if(UI.flow.unit!=null) UI.selUnit=UI.flow.unit;
+  renderGame();
+  renderPanel();
+}
+
+/* 本格某機處理完 → 標記、找下一件事 */
+function finishUnitGrid(bu, g){
+  bu.gridDone=g;
+  // 本格還有別的有事機嗎？
+  enterGrid(g);
+}
+function advanceGrid(){ BS.pointer++; advanceToNextStop(); }
+
+/* ============================================================
+   宣告動作 → 寫入 track（下一格生效）
+   ============================================================ */
+function applyHeat(bu, delta, g){
+  bu.heat = Math.max(0, bu.heat+delta);
+  if(delta!==0){ const c=cell(bu,g); c.heat=bu.heat; }
+  // 過熱：增熱即等量扣結構
+  if(delta>0 && bu.heat>bu.heatCap){
+    const overInc = Math.min(delta, bu.heat-bu.heatCap);
+    if(overInc>0) damageStructure(bu, overInc, true);
+  }
+}
+function isOverheat(bu){ return bu.heat>=bu.heatCap; }
+
+function declareMove(bu, g, mode, dist, posture){
+  const start=g+1;
+  if(mode==='高速'){
+    // 全系・兩格
+    for(let i=0;i<2;i++){ const c=cell(bu,start+i); c.m={t:'move',mode:'高速',dist:2}; c.w={t:'full'}; }
+    applyHeat(bu, 2*Math.max(1,dist||4), start);
+  }else{
+    const c=cell(bu,start);
+    c.m={t:'move',mode,dist,posture};
+    if(mode==='步行'){ applyHeat(bu, -2, start); }      // 散熱2
+    else if(mode==='噴射'){ applyHeat(bu, 2*Math.max(1,dist||1), start); }
+  }
+  if(posture && posture!=='—') bu.posture=posture;
+}
+function declarePass(bu, g){
+  const start=g+1; const c=cell(bu,start);
+  c.m={t:'pass'}; c.w={t:'pass'};
+  applyHeat(bu, -4, start);                              // 散熱4
+}
+function declarePosture(bu, g, posture){
+  const start=g+1; const c=cell(bu,start);
+  c.m={t:'move',mode:'姿勢',dist:0,posture}; // 蹲下：佔機動、不移動
+  bu.posture=posture;
+}
+function declareAttack(bu, g, ws, target, situation){
+  const w=ws.w; const ps=parseSlots(w);
+  const start=g+1;
+  const att={ id:'a'+(BS._aid=(BS._aid||0)+1), wname:w.name, hp:ws.hp, target, situation,
+    start, total:ps.total, full:ps.full, melee:isMelee(w),
+    hitGrids: ps.hitOff.map(o=>start+o-1), resolved:new Set(), ws };
+  for(let i=0;i<ps.total;i++){
+    const gg=start+i; const c=cell(bu,gg);
+    const isHit = att.hitGrids.includes(gg);
+    c.w={t:isHit?'hit':'flaw', att:att.id, melee:att.melee};
+    if(ps.full) c.m={t:'full', att:att.id};
+  }
+  // 自熱（擊發）：簡化於首命中格入帳
+  const hv=heatVals(w);
+  const shots = hv.perShot ? ps.hitOff.length : 1;
+  if(hv.self>0) applyHeat(bu, hv.self*shots, att.hitGrids[0]||start);
+  // 擊發消耗：彈藥/裝填
+  if(ws.ammo!=null) ws.ammo=Math.max(0,ws.ammo-1);
+  if(ws.reloadNeed>0 && !reloadOnlyAfterHit(w)){ ws.loadedReady=false; ws.reloadDone=0; }
+  bu.attacks.push(att);
+  return att;
+}
+function declareReload(bu, g, ws){
+  const w=ws.w; const ps=parseSlots(w);
+  const full = ps? ps.full : (w.action==='全系');
+  const need = ws.reloadNeed||1;
+  const start=g+1;
+  for(let i=0;i<need;i++){
+    const gg=start+i; const c=cell(bu,gg);
+    c.w={t:'reload'}; if(full) c.m={t:'full',reload:true};
+  }
+  ws.reloadDone=need; ws.loadedReady=true;
+  if(ws.ammo!=null) ws.ammo=w.ammo;          // 補滿彈藥
+}
+
+/* ============================================================
+   傷害 / 結構 / 部位破壞
+   ============================================================ */
+function structThreshold(bu){ return Math.floor(bu.maxStructure/2); }
+function inPartZone(bu){ return bu.structure<=structThreshold(bu); }
+function damageStructure(bu, amt, fromHeat){
+  if(amt<=0) return {dead:false};
+  bu.structure=Math.max(0, bu.structure-amt);
+  if(bu.structure<=0){ bu.dead=true; return {dead:true}; }
+  return {dead:false};
+}
+const PART_NAMES=['左肩臂','右肩臂','左腿','右腿','背部','攻方自選'];
+function partDestroy(bu, d6){
+  // d6:1-5 對應部位；6=自選（交給玩家口頭，這裡標記）
+  let hp = PART_NAMES[d6-1];
+  let killed=[];
+  if(hp==='背部' && bu.base.gear.includes('rack')){
+    for(const k of ['背部','背部2']){ const ws=bu.weapons.find(x=>x.hp===k); if(ws && !ws.broken && !hasTag(ws.w,'基本')){ ws.broken=true; killed.push(ws.name);} }
+  }else if(hp!=='攻方自選'){
+    const ws=bu.weapons.find(x=>x.hp===hp);
+    if(ws && !ws.broken && !hasTag(ws.w,'基本')){ ws.broken=true; killed.push(ws.name); }
+  }
+  return {hp, killed};
+}
+
+/* ============================================================
+   骰：代骰
+   ============================================================ */
+function rollPool(dice, thr){
+  let succ=0; for(let i=0;i<dice;i++){ if((Math.floor(Math.random()*6)+1)>=thr) succ++; }
+  return succ;
+}
+
+/* ============================================================
+   渲染：頁籤 + 機體卡 + 時間軌
+   ============================================================ */
+function renderGame(){
+  document.getElementById('ptrLab').textContent='格 '+BS.pointer;
+  // 淨空時「輪到你了」按鈕亮起提示可按
+  const tb=document.getElementById('btnTurn');
+  if(tb) tb.classList.toggle('lit', !UI.flow);
+  renderScroll(); renderPanel();
+}
+/* 焦點機（操作/結算中=實線紅）與候選機（可選=淡橘虛框） */
+function cardFocus(){
+  const r={active:new Set(), pick:new Set()}; const f=UI&&UI.flow; if(!f) return r;
+  if(f.kind==='pickUnit'&&f.choices) f.choices.forEach(i=>r.pick.add(i));
+  else if(f.unit!=null) r.active.add(f.unit);
+  return r;
+}
+function renderScroll(){
+  const sc=document.getElementById('scroll');
+  const prevTop=sc.scrollTop;                 // 保住玩家手動捲到的位置（innerHTML 重設會歸零）
+  const fc=cardFocus();
+  const html=BS.units.map(u=>cardHTML(u, fc.active.has(u.idx)?'active':fc.pick.has(u.idx)?'pick':'')).join('')+cheatFooter();
+  sc.innerHTML=html;
+  syncPanelPad();
+  sc.scrollTop=prevTop;                        // 還原垂直捲動位置
+  // 每張卡的時間軌橫向捲到指針可見
+  sc.querySelectorAll('.ptscroll').forEach(ps=>{ ps.scrollLeft = Math.max(0,(BS.pointer-1)*PTCOLW - 56); });
+  // 只有「焦點機換了人、且它不在舒適視野」才捲動，避免每次推進把紙往上甩
+  const focus = fc.active.size===1 ? [...fc.active][0] : null;
+  if(focus!=null){
+    const el=sc.querySelector('.pcard[data-unit="'+focus+'"]');
+    if(el && focus!==UI._lastFocus && !cardComfortablyVisible(el)){
+      try{ el.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){ el.scrollIntoView(); }
+    }
+    UI._lastFocus=focus;
+  } else { UI._lastFocus=null; }
+}
+const PTCOLW=21; // 與 .ptcol 寬一致
+function cardComfortablyVisible(el){
+  const sc=document.getElementById('scroll').getBoundingClientRect();
+  const r=el.getBoundingClientRect();
+  const panelTop=document.getElementById('panel').getBoundingClientRect().top;
+  // 卡頂在可見頂端附近、且卡頂沒被浮動面板蓋住
+  return r.top>=sc.top-6 && r.top < Math.min(panelTop, sc.bottom)-50;
+}
+/* 浮動面板高度 → 撐開捲動區底部留白，確保所有卡都捲得到 */
+function syncPanelPad(){
+  const p=document.getElementById('panel'); const sc=document.getElementById('scroll');
+  if(!p||!sc) return;
+  sc.style.paddingBottom=(p.offsetHeight+16)+'px';
+}
+
+/* ---- 紙卡（同產生器印刷臉）---- */
+function cardHTML(u, focusCls){
+  const ring=DATA.armorRing[u.armor];
+  const order=['左肩臂','右肩臂','左腿','右腿','背部'].concat(u.base.gear.includes('rack')?['背部2']:[]);
+  let groups=order.map(hp=>wgroupLive(u,hp)).join('');
+  if(order.length%2===1) groups+='<div class="wg"></div>'; // 補欄對齊
+  let badges='<span class="pstat pose">'+u.posture+'</span>';
+  if(isOverheat(u)) badges+='<span class="pstat over">過熱</span>';
+  if(inPartZone(u)&&!u.dead) badges+='<span class="pstat low">破壞區</span>';
+  if(u.dead) badges+='<span class="pstat dead">退場</span>';
+  return '<div class="pcard'+(u.dead?' dead':'')+(focusCls?' '+focusCls:'')+'" data-unit="'+u.idx+'">'+
+    heatStripLive(u)+
+    '<div class="pbody">'+
+      '<div class="phead"><span class="pname">'+esc(u.name)+'</span>'+
+        '<span class="ppts">'+unitCostOf(u.base)+'點</span>'+badges+
+        '<span class="parm">裝甲<b>'+u.armor+'</b> 弱'+ring.weak+'</span></div>'+
+      structRowLive(u)+
+      '<div class="wgroups">'+groups+'</div>'+
+      gearRowLive(u)+
+      ptrackLive(u)+
+    '</div></div>';
+}
+function heatStripLive(u){
+  const cap=u.heatCap, n=cap+6; let cells='';
+  for(let v=0; v<n; v++){
+    const cls=['hcell'];
+    if(v>=cap) cls.push('ov');
+    if(v===cap) cls.push('capline');
+    if(v<u.heat) cls.push('filled');
+    if(v===u.heat){ cls.push('cur'); if(v>=cap) cls.push('ovcur'); }
+    cells+='<div class="'+cls.join(' ')+'">'+v+'</div>';
+  }
+  return '<div class="heatcol">'+cells+'</div>';
+}
+function structRowLive(u){
+  const thr=structThreshold(u); const lost=u.maxStructure-u.structure; let boxes='';
+  for(let i=1;i<=u.maxStructure;i++){
+    // 損血從左邊開始扣：前 lost 格標為已失（×），剩餘在右側
+    boxes+='<span class="sbox '+(i<=lost?'lost':'full')+'"></span>';
+    if(i===thr) boxes+='<span class="sthr" title="部位破壞門檻"></span>';
+  }
+  return '<div class="srow"><span class="slab">結構</span>'+boxes+
+    '<span class="snote">'+u.structure+'/'+u.maxStructure+'｜門檻'+thr+'</span></div>';
+}
+function wgroupLive(u, hp){
+  const title = hp==='背部2'?'背部(掛架)':hp;
+  const ws=u.weapons.find(x=>x.hp===hp);
+  const mn=u.base.mounts[hp];
+  let inner, broken=false;
+  if(!ws){
+    if(mn && weaponByName[mn] && weaponByName[mn].twoHanded) inner='<div class="prow blank">〈雙手武器佔用〉</div>';
+    else inner='<div class="prow blank">—</div>';
+  }else{
+    broken=ws.broken; inner=weaponRowLive(u, ws);
+  }
+  return '<div class="wg"><div class="wgt"><b>'+esc(title)+'</b>'+
+    '<span class="pl">點位已毀<span class="cb'+(broken?' on':'')+'"></span></span></div>'+inner+'</div>';
+}
+function weaponRowLive(u, ws){
+  const w=ws.w; const basic=hasTag(w,'基本'); const sig=(u.signature===w.name);
+  let state,scls;
+  if(ws.broken){ state='已破壞'; scls='broken'; }
+  else if(ws.reloadNeed>0 && !ws.loadedReady){ state='需裝填'; scls='empty'; }
+  else if(ws.ammo!=null && ws.ammo<=0){ state='彈盡'; scls='empty'; }
+  else { state='可發'; scls='ready'; }
+  let ammo='';
+  if(ws.ammo!=null){ const tot=w.ammo; ammo='<span class="pdots">'+Array.from({length:tot},(_,i)=>'<span class="pdot'+(i<ws.ammo?' full':'')+'"></span>').join('')+'</span>'; }
+  const accStr = sig && w.melee==null ? (' →命'+(w.acc+1)+'★') : '';
+  return '<div class="prow'+(ws.broken?' dead':'')+'">'+
+    '<span class="wn'+(basic?' basic':'')+(sig?' sig':'')+'">'+esc(w.name)+'</span>'+
+    '<span class="wpt">'+w.cost+'</span>'+
+    '<span class="wsd">'+esc(statStr(w))+esc(accStr)+'</span>'+
+    (tagStr(w)?'<span class="wtg">'+esc(tagStr(w))+'</span>':'')+
+    ammo+
+    '<span class="wstate '+scls+'">'+state+'</span>'+
+  '</div>';
+}
+function gearRowLive(u){
+  let sink=0; const counted={};
+  for(const id of u.base.gear){ if(id==='heatsink'){sink++;continue;} counted[id]=(counted[id]||0)+1; }
+  const parts=[];
+  for(const id of Object.keys(counted)) parts.push(esc(equipById[id].name)+(counted[id]>1?'×'+counted[id]:''));
+  if(sink) parts.push('散熱器×'+sink+'（容量'+u.heatCap+'）');
+  return '<div class="gearrow"><span class="glab">裝備</span><span class="gn">'+(parts.join('、')||'（無）')+'</span></div>';
+}
+function ptrackLive(u){
+  const len=trackLen();   // 1v1=40、多機=50
+  let cols='';
+  for(let g=1; g<=len; g++){
+    const c=u.track[g]||{};
+    cols+='<div class="ptcol'+(g===BS.pointer?' now':'')+'">'+
+      '<div class="pgn">'+g+'</div>'+
+      ptcell(c.w,'arm')+ ptcell(c.m,'mob')+
+      '<div class="ptlh">'+(c.heat!=null?'H'+c.heat:'')+'</div>'+
+    '</div>';
+  }
+  return '<div class="ptrack"><div class="ptt"><span>時間軌 上武裝／下機動</span><span>共 '+len+' 格・指針 '+BS.pointer+'</span></div>'+
+    '<div class="ptscroll"><div class="ptgrid">'+cols+'</div></div></div>';
+}
+function ptcell(cl, sysCls){
+  if(!cl) return '<div class="ptc '+sysCls+'"></div>';
+  let sym='', cls=['ptc',sysCls];
+  if(cl.t==='move'){ cls.push('move');
+    sym = cl.mode==='步行'?('&gt;'+(cl.dist?'<sub>'+cl.dist+'</sub>':'')) : cl.mode==='噴射'?'&gt;&gt;'
+        : cl.mode==='高速'?'&gt;&gt;&gt;' : cl.mode==='姿勢'?(cl.posture==='蹲'?'⌄':cl.posture==='滯空'?'↑':'⌃'):'·';
+  }else if(cl.t==='pass'){ cls.push('pass'); sym='╱'; }
+  else if(cl.t==='hit'){ cls.push('hit'); sym=cl.melee?'⚔':'◎'; }
+  else if(cl.t==='flaw'){ cls.push('flaw'); sym='│'; }
+  else if(cl.t==='full'){ cls.push('full'); sym=cl.reload?'R':'┃'; }
+  else if(cl.t==='reload'){ sym='R'; }
+  return '<div class="'+cls.join(' ')+'">'+sym+'</div>';
+}
+function cheatFooter(){
+  return '<div class="cheatft">'+
+    '<div><b>移動</b>步行≤1UD/格散2・噴射每UD+2熱・高速2格直線視同掩體・滯空每UD+1熱</div>'+
+    '<div><b>門檻</b>普5+/優4+/劣6+（最多一階，溢出改骰數）・掩體迴避+2</div>'+
+    '<div><b>破綻</b>遠程打=迴避劣勢／近戰打=自動命中　<b>過熱</b>全劣勢＋增熱即扣結構</div>'+
+    '<div class="gn" style="color:#888;margin-top:2px">框＝命中格・紅│＝破綻・┃＝全系・&gt;步行 &gt;&gt;噴射 &gt;&gt;&gt;高速・╱空過・R裝填・H熱</div>'+
+  '</div>';
+}
+function unitCostOf(u){
+  // 與產生器一致的建造點數（顯示用）
+  function structCost(n){ let c=DATA.structureCost.slice(0,n).reduce((a,b)=>a+b,0);
+    if(BS.options&&BS.options.freeStruct5) c-=DATA.structureCost.slice(0,Math.min(5,n)).reduce((a,b)=>a+b,0); return c; }
+  function gearCost(gear){ let s=0,c=0; for(const id of gear){ if(id==='heatsink'){s++;c+=8*s;} else c+=equipById[id].cost; } return c; }
+  const wc=unitWeaponEntries(u).reduce((a,[k,w])=>a+w.cost+((u.wmods&&u.wmods[k]&&modById[u.wmods[k]])?modById[u.wmods[k]].cost:0),0);
+  return structCost(u.structure)+wc+gearCost(u.gear);
+}
+
+/* ============================================================
+   底部決策面板（入口一 / 入口二）
+   ============================================================ */
+function panelEl(){ return document.getElementById('panelInner'); }
+function setPanel(html){
+  const inner=panelEl(); inner.innerHTML=html;
+  const p=document.getElementById('panel'); p.classList.remove('min'); p.scrollTop=0;
+  const chev=document.getElementById('phmin'); if(chev) chev.textContent='▾';
+  const pq=inner.querySelector('.pq'); const t=document.getElementById('phtitle');
+  if(t) t.textContent = pq ? pq.textContent : '操作';
+  // 上一步／取消 按鈕字樣（首步顯示「取消」）
+  const back=document.getElementById('phback');
+  if(back) back.textContent = undoLeadsToClean() ? '✕ 取消' : '← 上一步';
+  syncPanelPad();
+}
+
+function redlinesHTML(bu){
+  const oh=isOverheat(bu), warn=bu.heat>=bu.heatCap-2 && !oh;
+  const pz=inPartZone(bu);
+  function line(ic,txt){ return '<div class="rl"><span class="ic '+ic+'"></span>'+txt+'</div>'; }
+  return '<div class="redlines">'+
+    line(oh?'r':warn?'y':'g', '熱 <b>'+bu.heat+'/'+bu.heatCap+'</b>'+(oh?'：<b>過熱中</b>，擲骰全劣勢，再增熱即等量扣結構':warn?'：接近容量':'')) +
+    line(pz?'r':'g', '結構 <b>'+bu.structure+'/'+bu.maxStructure+'</b>'+(pz?'：<b>部位破壞區</b>，中彈要骰部位 d6':'')) +
+    line(bu.structure>0?'g':'r', bu.structure>0?'未退場':'結構歸零・退場') +
+  '</div>';
+}
+
+function renderPanel(){
+  const f=UI.flow;
+  const p=document.getElementById('panel');
+  if(!f){ p.classList.add('hidden'); syncPanelPad(); return; }   // 淨空：隱藏浮動面板
+  p.classList.remove('hidden');
+  if(f.kind==='end'){
+    setPanel('<div class="pq">時間軌走完，本局結束</div><div class="psub">比擊墜點數定勝負（口頭結算）。</div>'+
+      '<button class="bigbtn ghost" data-act="reset2">重新載入隊伍</button>'); return;
+  }
+  if(f.kind==='pickUnit') return panelPickUnit(f);
+  if(f.kind==='unitTurn') return panelUnitTurn(f);
+  if(f.kind==='cmd') return panelCmd(f);
+  if(f.kind==='resolveHit') return panelResolveHit(f);
+  if(f.kind==='attack') return panelAttackFlow(f);
+  if(f.kind==='defPick') return panelDefPick(f);
+  if(f.kind==='defKind') return panelDefKind(f);
+}
+
+/* --- 被攻擊：選我哪一台被打 → 遠程/近戰 → 守方結算 --- */
+function panelDefPick(f){
+  let html='<div class="pq">被攻擊：對手在打哪一台？</div>'+
+    '<div class="psub">對手宣告攻擊、命中格到了由你按這裡結算守方。選出對手打的是你哪一台機。</div><div class="bgrid">';
+  for(const i of f.choices){
+    const bu=BS.units[i];
+    html+='<button class="bigbtn" data-act="defpick_u" data-i="'+i+'">'+esc(bu.name)+
+      '<span class="tag">熱'+bu.heat+'/'+bu.heatCap+'・結'+bu.structure+'/'+bu.maxStructure+'</span></button>';
+  }
+  html+='</div><div class="spacer"></div><button class="bigbtn ghost" data-act="defcancel">取消</button>';
+  setPanel(html);
+}
+function panelDefKind(f){
+  const bu=BS.units[f.unit];
+  let html='<div class="pq">'+esc(bu.name)+' 被什麼攻擊？</div>'+
+    '<div class="psub">遠程→算迴避骰；近戰→依你當下武裝系狀態自動分流（對砍／擇優防禦／自動命中）。</div><div class="bgrid">'+
+    '<button class="bigbtn" data-act="defkind" data-k="ranged">遠程攻擊<span class="sm">命中骰 vs 我迴避（基礎4，掩體+2）</span></button>'+
+    '<button class="bigbtn" data-act="defkind" data-k="melee">近戰攻擊<span class="sm">近戰值對拼／擇優防禦／自動命中</span></button>'+
+    '</div><div class="spacer"></div><button class="bigbtn ghost" data-act="defcancel">取消</button>';
+  setPanel(html);
+}
+
+/* --- 入口一：選一台有事的機 --- */
+function panelPickUnit(f){
+  let html='<div class="pq">輪到你了（格 '+f.g+'）</div>'+
+    '<div class="psub">這格有 '+f.choices.length+' 台機可決策。機體是最小決策單位——選一台先把它這格的事處理完，再選下一台。</div>';
+  html+='<div class="bgrid">';
+  for(const i of f.choices){
+    const bu=BS.units[i];
+    const due=dueHitsAt(bu,f.g).length;
+    const sysm=sysFree(bu,f.g,'m')?'機動空':'機動佔'; const sysw=sysFree(bu,f.g,'w')?'武裝空':'武裝佔';
+    html+='<button class="bigbtn" data-act="pick" data-i="'+i+'">'+esc(bu.name)+
+      '<span class="tag">'+(due?'命中格到期 ':'')+sysw+'・'+sysm+'</span></button>';
+  }
+  html+='</div>';
+  setPanel(html);
+}
+
+/* --- 入口一：選定一台 → 三紅線 + 能幹嘛 --- */
+function panelUnitTurn(f){
+  const bu=BS.units[f.unit]; const g=f.g;
+  UI.selUnit=f.unit;
+  const mFree=sysFree(bu,g,'m'), wFree=sysFree(bu,g,'w');
+  // 已在本格宣告的系
+  const d=f.declared;
+  const mAvail=mFree && !d.m, wAvail=wFree && !d.w;
+
+  let html='<div class="pq">'+esc(bu.name)+'：你現在能幹嘛？</div>';
+  html+=redlinesHTML(bu);
+
+  if(!mAvail && !wAvail){
+    html+='<div class="psub">兩系都滿了，這格照原訂跑。'+
+      (sysFree(bu,g,'w')?'':'⚠ 武裝線裸露段＝破綻，敵人遠程打你迴避劣勢。')+'</div>';
+    html+='<button class="bigbtn go" data-act="endgrid">完成這台・推進</button>';
+    setPanel(html); return;
+  }
+
+  const bothFree = mAvail && wAvail;
+  html+='<div class="psub">'+(bothFree?'兩系皆空：可做一個全系動作，或一機動＋一武裝，或只做一件。拿不定主意就空過。'
+    : wAvail? '機動系佔用中（移動中）：可補一個武裝攻擊（邊走邊射，攻方劣勢）或裝填。'
+    : '武裝系佔用中（開火／收招／裝填）：可補步行或噴射。')+'</div>';
+
+  html+='<div class="bgrid">';
+  // 移動（需機動系空）
+  if(mAvail){
+    html+=btn('move','移動／姿勢','步行・噴射'+(bothFree?'・高速(全系)':'')+'・蹲/起身',false);
+  }
+  // 開武器
+  if(wAvail){
+    const light = bu.weapons.filter(ws=>canFire(ws) && (parseSlots(ws.w)&&!parseSlots(ws.w).full) && !isMelee(ws.w));
+    const heavy = bu.weapons.filter(ws=>canFire(ws) && parseSlots(ws.w)&&parseSlots(ws.w).full && !isMelee(ws.w));
+    const fireable = bothFree ? bu.weapons.filter(ws=>canFire(ws)&&!isMelee(ws.w)) : light;
+    html+=btn('fire','開火','射擊武器'+(bothFree?'（含重武器・全系）':'（限輕武器）'), fireable.length===0);
+  }
+  // 近戰（需兩系空）
+  if(bothFree){
+    const melee=bu.weapons.filter(ws=>canFire(ws)&&isMelee(ws.w));
+    html+=btn('melee','近戰','格鬥武器揮砍（全系）', melee.length===0);
+  }
+  // 裝填（需該武器同系空）
+  if(wAvail){
+    const need=bu.weapons.filter(ws=>ws.reloadNeed>0 && !ws.loadedReady && !ws.broken && (bothFree || !parseSlots(ws.w).full));
+    html+=btn('reload','裝填','把空了的武器裝回（裝填中＝破綻）', need.length===0);
+  }
+  // 空過（需兩系空）
+  if(bothFree){
+    html+=btn('pass','空過','兩系淨空，散熱 4（安全選項）',false);
+  }
+  html+='</div>';
+  // 結束本格
+  if(d.m||d.w) html+='<div class="spacer"></div><button class="bigbtn go" data-act="endgrid">這格夠了・推進</button>';
+
+  setPanel(html);
+  function btn(act,t,sm,disabled){
+    return '<button class="bigbtn'+(disabled?'':'')+'" data-act="cmd" data-cmd="'+act+'"'+(disabled?' disabled':'')+'>'+
+      esc(t)+'<span class="sm">'+esc(sm)+'</span></button>';
+  }
+}
+function canFire(ws){
+  if(ws.broken) return false;
+  if(ws.ammo!=null && ws.ammo<=0) return false;
+  if(ws.reloadNeed>0 && !ws.loadedReady) return false;
+  return true;
+}
+
+/* --- 指令細節（人話問情境）→ 算骰 → 自動註記 --- */
+function panelCmd(f){
+  const bu=BS.units[f.unit]; const g=f.g;
+  const c=f.cmd;
+  if(c==='move') return cmdMove(f,bu,g);
+  if(c==='pass'){ declarePass(bu,g); f.parent.declared.m=true; f.parent.declared.w=true; backToTurn(f); return; }
+  if(c==='fire') return cmdPickWeapon(f,bu,g,'fire');
+  if(c==='melee') return cmdPickWeapon(f,bu,g,'melee');
+  if(c==='reload') return cmdReload(f,bu,g);
+}
+function backToTurn(f){
+  // 回到該機本格決策（可能還能補一件）
+  UI.flow=f.parent; renderGame(); renderPanel();
+}
+
+function cmdMove(f,bu,g){
+  const step=f.step||'mode';
+  if(step==='mode'){
+    const hasThr=bu.base.gear.includes('thruster');
+    const bothFree=sysFree(bu,g,'m')&&sysFree(bu,g,'w')&&!f.parent.declared.w;
+    let html=hq('走還是衝？',bu)+'<div class="bgrid">';
+    html+=mb('步行','每格 ≤1 UD・散熱 2・可同格再射擊');
+    if(hasThr) html+=mb('噴射','每格水平 ≥1 UD・每 UD +2 熱');
+    if(hasThr&&bothFree) html+=mb('高速','全系・直線兩格・每 UD +2 熱・視同掩體');
+    html+=mb('姿勢','只切姿勢（蹲下＝這格不動，換掩體）');
+    html+='</div>'+backBtn();
+    setPanel(html);
+    function mb(m,sm){ return '<button class="bigbtn" data-act="movemode" data-m="'+m+'">'+m+'<span class="sm">'+sm+'</span></button>'; }
+    return;
+  }
+  if(step==='dist'){
+    const m=f.mode;
+    let html=hq('走多遠？（'+m+'）',bu)+'<div class="bgrid two">';
+    const opts = m==='高速'?[4]:m==='噴射'?[1,2]:[1,2,3];
+    for(const d of opts) html+='<button class="bigbtn" data-act="movedist" data-d="'+d+'">'+d+' UD</button>';
+    html+='</div>'+backBtn();
+    setPanel(html); return;
+  }
+  if(step==='posture'){
+    let html=hq('移動開頭要切姿勢嗎？',bu)+'<div class="bgrid">';
+    html+='<button class="bigbtn" data-act="moveposture" data-p="—">不切（維持'+bu.posture+'姿）</button>';
+    if(bu.posture!=='蹲') html+='<button class="bigbtn ghost" data-act="moveposture" data-p="蹲">蹲下（換掩體・這格不移動）</button>';
+    if(bu.posture==='蹲') html+='<button class="bigbtn ghost" data-act="moveposture" data-p="站">起身（可同格移動）</button>';
+    if(bu.base.gear.includes('flight')) html+='<button class="bigbtn ghost" data-act="moveposture" data-p="滯空">升空（每 UD 另 +1 熱）</button>';
+    html+='</div>'+backBtn();
+    setPanel(html); return;
+  }
+}
+
+function cmdPickWeapon(f,bu,g,kind){
+  const bothFree=sysFree(bu,g,'m')&&sysFree(bu,g,'w')&&!f.parent.declared.m;
+  let list;
+  if(kind==='melee') list=bu.weapons.filter(ws=>canFire(ws)&&isMelee(ws.w));
+  else list=bu.weapons.filter(ws=>{ if(!canFire(ws)||isMelee(ws.w)) return false;
+    const ps=parseSlots(ws.w); if(!ps) return false;
+    return bothFree || !ps.full;   // 只武裝空時限輕武器
+  });
+  let html=hq(kind==='melee'?'用哪把格鬥武器？':'用哪把武器開火？',bu)+'<div class="bgrid">';
+  for(const ws of list){
+    const w=ws.w; const ps=parseSlots(w);
+    const tag = isMelee(w)?('近'+w.melee+'・'+statStr(w).split(' ').slice(-2).join(' ')) : statStr(w);
+    html+='<button class="bigbtn" data-act="weapon" data-hp="'+esc(ws.hp)+'">'+esc(w.name)+
+      '<span class="sm">'+esc(tag)+(ps.full?'・全系':'')+'</span></button>';
+  }
+  if(!list.length) html+='<div class="psub">沒有可用武器。</div>';
+  html+='</div>'+backBtn();
+  setPanel(html);
+}
+
+function cmdReload(f,bu,g){
+  const bothFree=sysFree(bu,g,'m')&&sysFree(bu,g,'w')&&!f.parent.declared.m;
+  const list=bu.weapons.filter(ws=>ws.reloadNeed>0 && !ws.loadedReady && !ws.broken && (bothFree||!parseSlots(ws.w).full));
+  let html=hq('裝填哪把武器？',bu)+'<div class="psub">裝填中＝破綻；裝滿才能再擊發。</div><div class="bgrid">';
+  for(const ws of list){
+    html+='<button class="bigbtn" data-act="doreload" data-hp="'+esc(ws.hp)+'">'+esc(ws.name)+
+      '<span class="sm">需裝填 '+ws.reloadNeed+' 格（'+(parseSlots(ws.w).full?'全系':'武裝系')+'）</span></button>';
+  }
+  if(!list.length) html+='<div class="psub">沒有需要裝填的武器。</div>';
+  html+='</div>'+backBtn();
+  setPanel(html);
+}
+
+function hq(q,bu){ return '<div class="pq">'+esc(q)+'</div>'; }
+function backBtn(){ return '<div class="spacer"></div><button class="bigbtn ghost" data-act="cmdback">← 換一個動作</button>'; }
+
+/* 攻擊：選完武器 → 問目標/情境 → 算骰 → 宣告（標未來命中格） */
+function startAttackDeclare(f,bu,g,ws){
+  UI.flow={kind:'attack', mode:'declare', sub:'target', unit:bu.idx, g, ws, parent:f.parent, situation:{}};
+  renderPanel();
+}
+function panelAttackFlow(f){
+  if(f.mode==='declare') return attackDeclarePanel(f);
+}
+function attackDeclarePanel(f){
+  const bu=BS.units[f.unit]; const ws=f.ws; const w=ws.w; const melee=isMelee(w);
+  const tg=BS.units.filter(x=>x.idx!==bu.idx); // 對手不在我隊，這裡的「目標」純標記名稱
+  if(f.sub==='target'){
+    // 目標只是個標籤（對手機由桌上口頭指認）；提供自由標記
+    let html='<div class="pq">'+esc(w.name)+'：打哪台？</div>'+
+      '<div class="psub">對手的機不在 Helper 裡，這裡只記個名字方便你對照。</div><div class="bgrid">';
+    for(const nm of ['敵機 A','敵機 B','敵機 C']) html+='<button class="bigbtn" data-act="atarget" data-t="'+nm+'">'+nm+'</button>';
+    html+='</div>'+backBtn();
+    setPanel(html); return;
+  }
+  if(f.sub==='dist'){
+    let html='<div class="pq">距離近還是遠？</div><div class="psub">近 ≤1 UD，遠 &gt;1 UD。'+
+      (w.near?'近距：'+esc(w.near)+'　':'')+(w.far?'遠距：'+esc(w.far==='X'?'✕不可':w.far):'')+'</div><div class="bgrid two">'+
+      '<button class="bigbtn" data-act="adist" data-d="near">近（≤1 UD）</button>'+
+      '<button class="bigbtn" data-act="adist" data-d="far">遠（&gt;1 UD）</button></div>'+backBtn();
+    setPanel(html); return;
+  }
+  if(f.sub==='flaw'){
+    // 攻方視角：目標是否破綻中（影響對手迴避）；遠程才問
+    let html='<div class="pq">目標現在破綻中嗎？</div>'+
+      '<div class="psub">破綻＝對手武裝系正開火/收招/裝填。是的話他遠程迴避劣勢（你較易命中）。不確定就選「否」。</div>'+
+      '<div class="bgrid two">'+
+      '<button class="bigbtn" data-act="aflaw" data-v="1">是・破綻中</button>'+
+      '<button class="bigbtn ghost" data-act="aflaw" data-v="0">否</button></div>'+backBtn();
+    setPanel(html); return;
+  }
+  if(f.sub==='declared'){
+    // 純顯示（declareAttack 已在轉場時執行一次，render 不可有副作用）
+    const att=f.att;
+    const hitTxt=att.hitGrids.map(x=>'格'+x).join('・');
+    let html='<div class="pq">已宣告：'+esc(w.name)+' → '+esc(f.target)+'</div>'+
+      '<div class="say">⚠ 宣告的動作<b>下一格才生效</b>。命中格在 <b>'+hitTxt+'</b>，到那格再走攻擊結算。</div>'+
+      '<div class="psub">時間軌已自動標上佔格／命中格／破綻。</div>'+
+      '<button class="bigbtn go" data-act="afterdeclare">好</button>';
+    setPanel(html); return;
+  }
+}
+/* 轉場：實際宣告攻擊（只跑一次，副作用不在 render 內） */
+function finalizeAttackDeclare(f){
+  const bu=BS.units[f.unit]; const ws=f.ws;
+  const att=declareAttack(bu, f.g, ws, f.target, f.situation);
+  f.parent.declared.w=true; if(att.full) f.parent.declared.m=true;
+  f.att=att; f.sub='declared';
+  renderGame();   // 更新卡片/時間軌 + 面板（此時 sub='declared' 為純顯示，不再宣告）
+}
+
+/* ============================================================
+   入口二：攻擊結算（命中格到期）
+   ============================================================ */
+function panelResolveHit(f){
+  const bu=BS.units[f.unit]; UI.selUnit=f.unit;
+  const {a, hg}=f.due[0];
+  const w=a.ws.w;
+  // 我方宣告的攻擊到了命中格 → 我是攻方
+  let html='<div class="pq">命中格到了（格 '+hg+'）</div>'+
+    '<div class="psub"><b>'+esc(bu.name)+'</b> 的 <b>'+esc(w.name)+'</b> → '+esc(a.target)+'。你是攻方，對手是守方。</div>';
+  html+='<div class="bgrid">'+
+    '<button class="bigbtn" data-act="atk_start">開始結算（我是攻方）</button>'+
+    '<button class="bigbtn ghost" data-act="def_start">改成我是守方（對手砍/打我）</button>'+
+    '</div>'+
+    '<div class="psub">註：若這格是「對手攻擊我」的結算（例如近戰命中格相撞），改走守方流程。</div>';
+  setPanel(html);
+}
+
+/* 攻方結算流程：以 sub 推進 */
+function startAttacker(bu, a, hg){
+  const w=a.ws.w;
+  UI.flow={ kind:'atk', sub:'hit', unit:bu.idx, a, hg, w,
+    carry:0, myHit:0, oppEvade:0, ring:null, myPow:0, oppStruct:0 };
+  if(isMelee(w)) UI.flow.sub='meleeBranch';
+  renderAtk();
+}
+/* 守方結算流程 */
+function startDefender(bu, a, hg, meleeFlag, manual){
+  UI.flow={ kind:'def', sub:'in', unit:bu.idx, a, hg, w:a?a.ws.w:null, manual:!!manual,
+    cover:false, oppHit:0, myEvade:0, addHeat:0, myStruct:0, oppPow:0,
+    melee: a?isMelee(a.ws.w):!!meleeFlag };
+  renderDef();
+}
+
+function renderAtk(){
+  const f=UI.flow; const bu=BS.units[f.unit]; const w=f.w; const a=f.a;
+  const oh=isOverheat(bu);
+  if(f.sub==='meleeBranch'){
+    // 近戰攻方：直接近戰值對拼（守方狀態由對手口頭，這裡照標準對拼；自動命中情況可跳段）
+    let html='<div class="pq">近戰結算：'+esc(w.name)+'（近戰值 '+w.melee+'）</div>'+
+      '<div class="psub">對手（守方）現在是什麼狀態？這決定第一段怎麼打。</div><div class="bgrid">'+
+      '<button class="bigbtn" data-act="mb" data-v="clash">他也在自己的近戰命中格<span class="sm">→ 近戰值對砍</span></button>'+
+      '<button class="bigbtn" data-act="mb" data-v="parry">他武裝系空，可招架<span class="sm">→ 我近戰值 vs 他擇優防禦</span></button>'+
+      '<button class="bigbtn warn" data-act="mb" data-v="auto">他破綻中／無格鬥武器<span class="sm">→ 自動命中、無帶分、直接威力</span></button>'+
+      '</div>';
+    setPanel(html); return;
+  }
+  if(f.sub==='hit'){
+    const melee=isMelee(w);
+    let base, steps=0; const notes=[];
+    if(melee){
+      // 近戰值對拼（圍毆/被圍由桌面口頭，這裡留給玩家自行加減）
+      base = w.melee;
+      notes.push('近戰值 '+w.melee);
+      if(f.meleeClash) notes.push('命中格相撞・對砍');
+    }else{
+      // 命中骰：基礎命中(+標誌) + 距離 + 邊走邊射 + 重武器站射
+      base = w.acc + ((bu.signature===w.name)?1:0);
+      if(bu.signature===w.name) notes.push('標誌 命中+1');
+      if(a.situation.dist && (w.near||w.far)){
+        const s=distSteps(a.situation.dist==='near'?w.near:w.far);
+        if(s){ steps+=s; notes.push('距離'+(a.situation.dist==='near'?'近':'遠')+' '+(a.situation.dist==='near'?w.near:w.far)); }
+      }
+      const movedSame = cell(bu, a.start).m && cell(bu,a.start).m.t==='move';
+      if(movedSame && !parseSlots(w).full){ steps-=1; notes.push('邊走邊射 劣勢'); }
+      if(parseSlots(w).full && bu.posture!=='蹲'){ steps-=1; notes.push('重武器非蹲射 劣勢'); }
+    }
+    if(oh){ steps-=1; notes.push('過熱 全劣勢'); }
+    const r=resolvePool(base, steps);
+    f._hit={dice:r.dice, thr:r.thr};
+    setPanel(diceCard(melee?'近戰值對拼':'命中骰', r.dice, r.thr, notes, 'mine')+
+      numIn('myHit', f.myHit, r.dice, '你過門檻的顆數')+
+      rollOrInput('atk_roll_hit','atk_set_hit',r.dice,r.thr)+
+      nextBtn('atk_hit_next', melee?'下一步：對手防禦':'下一步：對手迴避'));
+    return;
+  }
+  if(f.sub==='oppEvade'){
+    setPanel('<div class="pq">對手報來的迴避成功數？</div>'+
+      '<div class="psub">對手丟他的迴避骰，口頭報「過了幾顆」，輸進來比對。</div>'+
+      numIn('oppEvade', f.oppEvade, 20, '對手迴避過門檻顆數')+
+      nextBtn('atk_compare','比對'));
+    return;
+  }
+  if(f.sub==='compare'){
+    const hit=f.myHit>f.oppEvade;
+    const carry=hit?(f.myHit-f.oppEvade):0; f.carry=carry;
+    const hv=heatVals(w);
+    let html='<div class="result '+(hit?'hit':'miss')+'">'+
+      (hit? '<span class="big">命中！</span>（你 '+f.myHit+' &gt; 對手 '+f.oppEvade+'）<br>帶分 <b>'+carry+'</b>（加入威力骰）'
+          : '<span class="big">沒中</span>（你 '+f.myHit+' ≤ 對手 '+f.oppEvade+'，平手也算沒中）')+'</div>';
+    if(hit && hv.enemy>0) html+='<div class="say">📢 口頭告訴對手：你吃附熱 <b>+'+hv.enemy+'</b>'+(hv.perShot?'（每發）':'')+'</div>';
+    if(hit) html+=nextBtn('atk_power','第二段：威力');
+    else html+='<button class="bigbtn go" data-act="atk_done">結束這次攻擊</button>';
+    setPanel(html);
+    return;
+  }
+  if(f.sub==='power'){
+    // 問對手裝甲 → 剋制環
+    let html='<div class="pq">對手的裝甲是哪種？</div>'+
+      '<div class="psub">查剋制環定威力門檻。武器屬性：<b>'+w.type+'</b>。</div><div class="bgrid">';
+    for(const ar of DATA.armors){
+      const r=ringResult(w.type, ar);
+      html+='<button class="bigbtn" data-act="atk_armor" data-a="'+ar+'">'+ar+'<span class="sm">'+r.label+'</span></button>';
+    }
+    html+='</div>';
+    setPanel(html);
+    return;
+  }
+  if(f.sub==='powerRoll'){
+    let steps=f.ring.step; const notes=[f.ring.label];
+    if(oh){ steps-=1; notes.push('過熱 全劣勢'); }
+    const base=powBase(w)+f.carry;
+    if(f.carry>0) notes.unshift('威力'+powBase(w)+'＋帶分'+f.carry);
+    const r=resolvePool(base, steps);
+    f._pow={dice:r.dice,thr:r.thr};
+    setPanel(diceCard('威力骰', r.dice, r.thr, notes, 'mine')+
+      numIn('myPow', f.myPow, r.dice, '你威力骰過門檻顆數')+
+      rollOrInput('atk_roll_pow','atk_set_pow',r.dice,r.thr)+
+      nextBtn('atk_struct','下一步：對手結構'));
+    return;
+  }
+  if(f.sub==='oppStruct'){
+    setPanel('<div class="pq">對手報來的結構成功數？</div>'+
+      '<div class="psub">對手丟他的結構骰（＝他當前結構值，門檻 5+），報過幾顆。</div>'+
+      numIn('oppStruct', f.oppStruct, 20, '對手結構過門檻顆數')+
+      nextBtn('atk_net','算淨傷'));
+    return;
+  }
+  if(f.sub==='net'){
+    const net=Math.max(0, f.myPow-f.oppStruct);
+    let html='<div class="result '+(net>0?'hit':'miss')+'">'+
+      '<span class="big">淨傷 '+net+'</span>（你威力 '+f.myPow+' − 對手結構 '+f.oppStruct+'）</div>'+
+      '<div class="say">📢 口頭告訴對手：扣 <b>'+net+'</b> 結構。'+(net>0?'他若跌破半數要骰部位 d6。':'')+'</div>'+
+      '<button class="bigbtn go" data-act="atk_done">完成這次攻擊結算</button>';
+    setPanel(html);
+    return;
+  }
+}
+
+function renderDef(){
+  const f=UI.flow; const bu=BS.units[f.unit];
+  const oh=isOverheat(bu);
+  if(f.sub==='in'){
+    if(f.melee) return defMeleeBranch(f,bu);
+    setPanel('<div class="pq">對手報來的命中成功數？</div>'+
+      '<div class="psub">你是守方。對手丟命中骰，報「過了幾顆」。</div>'+
+      numIn('oppHit', f.oppHit, 20, '對手命中過門檻顆數')+
+      nextBtn('def_situ','下一步：我的情境'));
+    return;
+  }
+  if(f.sub==='situ'){
+    let html='<div class="pq">你這邊的情境？</div>'+
+      '<div class="psub">迴避基礎 4 骰。有掩體 +2 骰。破綻中／過熱＝劣勢。</div>';
+    html+='<label style="display:flex;gap:8px;align-items:center;font-size:15px;margin:8px 0"><input type="checkbox" id="defCover" '+(f.cover?'checked':'')+' style="width:22px;height:22px"> 對攻方有掩體（地形/高度/蹲姿/介入模型）</label>';
+    // 自動偵測破綻
+    const flaw = isInFlaw(bu, f.hg);
+    html+='<div class="psub">'+(flaw?'⚠ 偵測到你此刻在破綻中（武裝線裸露）→ 迴避劣勢已自動套用。':'未偵測到破綻。')+(oh?' ⚠ 過熱→全劣勢。':'')+'</div>';
+    html+='<button class="bigbtn go" data-act="def_evade">算我的迴避骰</button>';
+    setPanel(html);
+    return;
+  }
+  if(f.sub==='evade'){
+    let base=DATA.chassis.evade + (f.cover?DATA.chassis.coverBonus:0);
+    let steps=0; const notes=[];
+    if(f.cover) notes.push('掩體 +2 骰');
+    if(isInFlaw(bu,f.hg)){ steps-=1; notes.push('破綻 劣勢'); }
+    if(oh){ steps-=1; notes.push('過熱 全劣勢'); }
+    const r=resolvePool(base, steps);
+    f._ev={dice:r.dice,thr:r.thr};
+    setPanel(diceCard('迴避骰', r.dice, r.thr, notes, 'def')+
+      numIn('myEvade', f.myEvade, r.dice, '你迴避過門檻顆數')+
+      rollOrInput('def_roll_ev','def_set_ev',r.dice,r.thr)+
+      nextBtn('def_compare','比對'));
+    return;
+  }
+  if(f.sub==='compare'){
+    const hit=f.oppHit>f.myEvade;
+    let html='<div class="result '+(hit?'bad':'hit')+'">'+
+      (hit? '<span class="big">中了！</span>（對手 '+f.oppHit+' &gt; 你 '+f.myEvade+'）'
+          : '<span class="big">閃掉</span>（對手 '+f.oppHit+' ≤ 你 '+f.myEvade+'）')+'</div>';
+    if(hit) html+=nextBtn('def_heat','中了：先吃附熱');
+    else html+='<button class="bigbtn go" data-act="def_done">結束</button>';
+    setPanel(html);
+    return;
+  }
+  if(f.sub==='heat'){
+    setPanel('<div class="pq">對手這把武器的附熱是多少？</div>'+
+      '<div class="psub">對手報「附熱 +X」。Helper 幫你加進熱條。</div>'+
+      numIn('addHeat', f.addHeat, 20, '附熱值（對手報）')+
+      nextBtn('def_applyheat','加熱並進威力段'));
+    return;
+  }
+  if(f.sub==='struct'){
+    const base=bu.structure;
+    const notes=['結構骰＝當前結構 '+base];
+    let steps=0; // 守方結構門檻固定 5+（剋制環影響攻方威力，不影響守方結構）
+    if(oh){ /* 過熱亦劣勢，但結構骰是否劣勢？規則：所有擲骰劣勢 */ steps-=1; notes.push('過熱 全劣勢'); }
+    const r=resolvePool(base, steps);
+    f._st={dice:r.dice,thr:r.thr};
+    setPanel(diceCard('結構骰', r.dice, r.thr, notes, 'def')+
+      numIn('myStruct', f.myStruct, r.dice, '你結構過門檻顆數')+
+      rollOrInput('def_roll_st','def_set_st',r.dice,r.thr)+
+      nextBtn('def_oppPow','輸入對手威力'));
+    return;
+  }
+  if(f.sub==='oppPow'){
+    setPanel('<div class="pq">對手報來的威力成功數？</div>'+
+      '<div class="psub">對手丟威力骰（＋帶分），報過幾顆。</div>'+
+      numIn('oppPow', f.oppPow, 30, '對手威力過門檻顆數')+
+      nextBtn('def_dmg','算我扣多少'));
+    return;
+  }
+  if(f.sub==='dmg'){
+    // 扣結構只套用一次（守護 render 重入）
+    if(!f._dmgApplied){
+      f._dmgApplied=true;
+      f._net=Math.max(0, f.oppPow - f.myStruct);
+      f._before=bu.structure;
+      f._res=damageStructure(bu, f._net, false);
+      renderGame();
+    }
+    let html='<div class="result '+(f._net>0?'bad':'hit')+'">'+
+      '<span class="big">扣 '+f._net+' 結構</span>（對手威力 '+f.oppPow+' − 你結構 '+f.myStruct+'）<br>'+
+      '結構 '+f._before+' → <b>'+bu.structure+'</b> / '+bu.maxStructure+'</div>';
+    if(f._res.dead){ html+='<div class="result bad"><b>結構歸零・退場。</b></div>'; }
+    else if(f._net>0 && inPartZone(bu) && BS.options.partLoss){
+      html+='<div class="say">⚠ 跌破半數，進入<b>部位破壞區</b>。本次受創要骰部位 d6。</div>'+
+        '<button class="bigbtn warn" data-act="def_part">骰部位破壞 d6</button>';
+      setPanel(html); return;
+    }
+    html+='<button class="bigbtn go" data-act="def_done">完成</button>';
+    setPanel(html);
+    return;
+  }
+  if(f.sub==='part'){
+    const names=['1 左肩臂','2 右肩臂','3 左腿','4 右腿','5 背部','6 攻方自選'];
+    let html='<div class="pq">部位破壞 d6</div><div class="psub">骰一顆 d6 決定哪個掛載點報廢（基本武器倖存）。</div>';
+    if(BS.auto) html+='<button class="bigbtn go" data-act="def_part_roll">🎲 代骰 d6</button><div class="spacer"></div>';
+    html+='<div class="bgrid two">';
+    for(let i=1;i<=6;i++) html+='<button class="bigbtn ghost" data-act="def_part_pick" data-d="'+i+'">'+names[i-1]+'</button>';
+    html+='</div>';
+    setPanel(html); return;
+  }
+  if(f.sub==='partResult'){
+    const r=f.partRes;
+    let html='<div class="result bad"><span class="big">d6='+f.d6+' → '+esc(r.hp)+'</span><br>'+
+      (r.killed.length?'報廢：<b>'+esc(r.killed.join('、'))+'</b>':'（該部位無可破壞武器，或基本武器倖存）')+'</div>'+
+      '<button class="bigbtn go" data-act="def_done">完成</button>';
+    setPanel(html); return;
+  }
+  if(f.sub==='meleeRoll'){
+    let base, label, notes=[];
+    if(f._useMelee){ const b=bestMelee(bu); base=b.melee; label='近戰值對拼'; notes.push('近戰值 '+b.melee+'（'+b.name+'）'); }
+    else { base=DATA.chassis.evade; label='迴避防禦'; notes.push('迴避值 '+base+'（近戰無視掩體・不加2）'); }
+    let steps=0;
+    if(f.defMode==='clash') notes.push('命中格相撞・對砍');
+    if(oh){ steps-=1; notes.push('過熱 全劣勢'); }
+    const r=resolvePool(base, steps);
+    f._md={dice:r.dice,thr:r.thr};
+    setPanel('<div class="pq">近戰防禦：'+label+'</div>'+
+      diceCard(label, r.dice, r.thr, notes, 'def')+
+      numIn('myEvade', f.myEvade||0, r.dice, '你過門檻顆數')+
+      rollOrInput('def_roll_mel','x',r.dice,r.thr)+
+      nextBtn('def_mel_opp','輸入對手近戰成功數'));
+    return;
+  }
+  if(f.sub==='meleeOpp'){
+    setPanel('<div class="pq">對手報來的近戰成功數？</div>'+
+      '<div class="psub">對手丟他的近戰值骰，報過幾顆。對手嚴格大於你才砍中。</div>'+
+      numIn('oppHit', f.oppHit||0, 20, '對手近戰過門檻顆數')+
+      nextBtn('def_mel_cmp','比對'));
+    return;
+  }
+  if(f.sub==='meleeCmp'){
+    const lost=f.oppHit>f.myEvade;
+    let html='<div class="result '+(lost?'bad':'hit')+'">'+
+      (lost?'<span class="big">被砍中</span>（對手 '+f.oppHit+' &gt; 你 '+f.myEvade+'）→ 進威力段'
+          :'<span class="big">擋下</span>（對手 '+f.oppHit+' ≤ 你 '+f.myEvade+'）')+'</div>';
+    if(lost) html+=nextBtn('def_heat','中了：吃附熱→威力段');
+    else html+='<button class="bigbtn go" data-act="def_done">結束</button>';
+    setPanel(html);
+    return;
+  }
+}
+
+/* 守方近戰分流（依我武裝系狀態自動判斷） */
+function defMeleeBranch(f,bu){
+  const hg=f.hg;
+  // 我此刻武裝系狀態
+  const myCell=cell(bu,hg).w;
+  const myMeleeHit = myCell && myCell.t==='hit' && myCell.melee; // 我也在自己的近戰命中格
+  const armOccupied = !!myCell && myCell.t!=='hit';              // 武裝系被佔（破綻）
+  const hasMelee = bu.weapons.some(ws=>canFire(ws)&&isMelee(ws.w));
+  let branch;
+  if(myMeleeHit) branch='clash';
+  else if(!myCell) branch = hasMelee?'parry':'auto'; // 武裝系空：有刀擇優、無刀自動命中
+  else branch='auto';                                // 武裝系被佔＝破綻：自動命中
+  f.branch=branch;
+  let html='<div class="pq">近戰：對手砍你</div>';
+  if(branch==='clash'){
+    html+='<div class="psub">你也正在自己的近戰命中格 →<b>近戰值對砍</b>。</div>';
+    const best=bestMelee(bu);
+    html+='<div class="say">你的最高近戰值：<b>'+best.melee+'</b>（'+esc(best.name)+'）。對手嚴格大於才贏。</div>'+
+      '<button class="bigbtn" data-act="def_clash">用近戰值對砍</button>';
+  }else if(branch==='parry'){
+    html+='<div class="psub">你武裝系空，可招架 →<b>擇優防禦</b>：近戰值 與 迴避值(基礎4) 取高。<b>近戰無視掩體：迴避不加 2</b>。</div>';
+    const best=bestMelee(bu);
+    const useMelee = best.melee>=DATA.chassis.evade;
+    html+='<div class="say">建議用 '+(useMelee?'近戰值 '+best.melee+'（'+esc(best.name)+'）':'迴避值 '+DATA.chassis.evade)+'（取高）。</div>'+
+      '<div class="bgrid two">'+
+      '<button class="bigbtn" data-act="def_parry" data-v="melee">用近戰值 '+best.melee+'</button>'+
+      '<button class="bigbtn ghost" data-act="def_parry" data-v="evade">用迴避值 '+DATA.chassis.evade+'</button></div>';
+  }else{
+    html+='<div class="psub">你'+(armOccupied?'武裝系被佔（破綻中）':'沒有可用格鬥武器')+' →<b>自動命中</b>：跳第一段、無帶分，直接威力段。</div>'+
+      '<button class="bigbtn warn" data-act="def_auto">直接進威力段（自動命中）</button>';
+  }
+  setPanel(html);
+}
+function bestMelee(bu){
+  let best={melee:0,name:''};
+  for(const ws of bu.weapons){ if(canFire(ws)&&isMelee(ws.w)&&ws.w.melee>best.melee) best={melee:ws.w.melee,name:ws.name}; }
+  return best;
+}
+function isInFlaw(bu, g){
+  const c=cell(bu,g).w;
+  return !!c && (c.t==='flaw' || c.t==='reload');
+}
+
+/* ============================================================
+   小元件
+   ============================================================ */
+function diceCard(label, dice, thr, notes, cls){
+  return '<div class="dicecard '+(cls||'')+'">'+
+    '<div class="dn">丟 '+dice+' 顆</div><div class="dlab">'+esc(label)+'</div>'+
+    '<div class="dthr">門檻 '+thr+'+</div>'+
+    (notes&&notes.length?'<div class="dbreak">'+notes.map(esc).join('　·　')+'</div>':'')+
+  '</div>';
+}
+function numIn(key, val, max, cap){
+  return '<div class="numin">'+
+    '<button data-act="num-" data-k="'+key+'">−</button>'+
+    '<span class="nv" id="nv_'+key+'">'+val+'</span>'+
+    '<button data-act="num+" data-k="'+key+'" data-max="'+max+'">＋</button>'+
+  '</div><span class="ncap">'+esc(cap||'')+'</span>';
+}
+function rollOrInput(rollAct, setAct, dice, thr){
+  if(BS.auto){
+    return '<button class="rollbtn alt" data-act="'+rollAct+'" data-dice="'+dice+'" data-thr="'+thr+'">🎲 代骰（丟 '+dice+' 顆・門檻 '+thr+'+）</button>';
+  }
+  return '';
+}
+function nextBtn(act, label){ return '<button class="bigbtn go" data-act="'+act+'">'+esc(label)+'</button>'; }
+
+/* ============================================================
+   事件委派
+   ============================================================ */
+// 不需拍快照的動作（純導覽/輸入/復原），其餘前進步驟一律先拍快照供「上一步」
+const NO_SNAP=new Set(['undo','num+','num-','seltab','reset2',
+  'atk_roll_hit','atk_roll_pow','def_roll_ev','def_roll_st','def_roll_mel','def_part_roll']);
+document.addEventListener('click', e=>{
+  const el=e.target.closest&&e.target.closest('[data-act]');
+  if(!el) return;
+  const act=el.dataset.act;
+  const f=UI&&UI.flow;
+
+  // 上一步／取消（復原到前一個快照；首步即回到淨空）
+  if(act==='undo'){ undoHist(); return; }
+  // 前進步驟：先拍快照
+  if(UI && UI.flow && !NO_SNAP.has(act)) pushHist();
+
+  // 頁籤切換
+  if(act==='seltab'){ UI.selUnit=+el.dataset.i; renderGame(); return; }
+  if(act==='reset2'){ doReset(); return; }
+
+  // 入口一：選機
+  if(act==='pick'){ UI.flow={kind:'unitTurn', unit:+el.dataset.i, g:f.g, declared:{m:false,w:false}}; UI.selUnit=+el.dataset.i; renderGame(); renderPanel(); return; }
+  if(act==='endgrid'){ const bu=BS.units[f.unit]; finishUnitGrid(bu, f.g); return; }
+
+  // 能幹嘛 → 指令
+  if(act==='cmd'){ UI.flow={kind:'cmd', cmd:el.dataset.cmd, unit:f.unit, g:f.g, parent:f}; renderPanel(); return; }
+  if(act==='cmdback'){ UI.flow=f.parent; renderPanel(); return; }
+
+  // 移動
+  if(act==='movemode'){ f.mode=el.dataset.m; if(f.mode==='姿勢'){ f.step='posture'; f.posOnly=true; } else f.step='dist'; renderPanel(); return; }
+  if(act==='movedist'){ f.dist=+el.dataset.d; f.step='posture'; renderPanel(); return; }
+  if(act==='moveposture'){
+    const bu=BS.units[f.unit]; const p=el.dataset.p;
+    if(f.posOnly){ declarePosture(bu, f.g, p==='—'?bu.posture:p); f.parent.declared.m=true; }
+    else { declareMove(bu, f.g, f.mode, f.dist, p==='—'?null:p); f.parent.declared.m=true; if(f.mode==='高速') f.parent.declared.w=true; }
+    backToTurn(f); return;
+  }
+
+  // 開火/近戰 選武器
+  if(act==='weapon'){ const bu=BS.units[f.unit]; const ws=bu.weapons.find(x=>x.hp===el.dataset.hp); startAttackDeclare(f,bu,f.g,ws); return; }
+  if(act==='doreload'){ const bu=BS.units[f.unit]; const ws=bu.weapons.find(x=>x.hp===el.dataset.hp); declareReload(bu,f.g,ws); f.parent.declared.w=true; if(parseSlots(ws.w).full) f.parent.declared.m=true; backToTurn(f); return; }
+
+  // 攻擊宣告流程
+  if(act==='atarget'){
+    f.target=el.dataset.t;
+    const w=f.ws.w;
+    if(isMelee(w)) finalizeAttackDeclare(f);              // 近戰：跳距離/破綻
+    else if(w.near||w.far){ f.sub='dist'; renderPanel(); }
+    else { f.sub='flaw'; renderPanel(); }                 // 無距離欄：直接問破綻
+    return;
+  }
+  if(act==='adist'){ f.situation.dist=el.dataset.d; f.sub='flaw'; renderPanel(); return; }
+  if(act==='aflaw'){ f.situation.targetFlaw=el.dataset.v==='1'; finalizeAttackDeclare(f); return; }
+  if(act==='afterdeclare'){ const bu=BS.units[f.unit]; finishUnitGrid(bu, f.g); return; }
+
+  // 入口二：選攻/守
+  if(act==='atk_start'){ const bu=BS.units[f.unit]; const {a,hg}=f.due[0]; startAttacker(bu,a,hg); return; }
+  if(act==='def_start'){ const bu=BS.units[f.unit]; const {a,hg}=f.due[0]; startDefender(bu,a,hg); return; }
+
+  // 被攻擊（手動守方入口）
+  if(act==='defcancel'){ const sv=UI._savedFlow; UI._savedFlow=null; if(sv){ UI.flow=sv; renderGame(); } else { goClean(); } return; }
+  if(act==='defpick_u'){ UI.flow={kind:'defKind', unit:+el.dataset.i}; renderGame(); return; }
+  if(act==='defkind'){ const bu=BS.units[f.unit]; startDefender(bu, null, BS.pointer, el.dataset.k==='melee', true); renderGame(); return; }
+
+  // 數字輸入（須在攻/守 dispatch 之前處理，否則被提早 return 吃掉）
+  if(act==='num+'||act==='num-'){
+    const k=el.dataset.k; const max=+(el.dataset.max||99);
+    const cur=+document.getElementById('nv_'+k).textContent;
+    let nv=cur+(act==='num+'?1:-1); nv=Math.max(0,Math.min(max,nv));
+    document.getElementById('nv_'+k).textContent=nv;
+    if(f) f[k]=nv;
+    return;
+  }
+
+  // 攻方
+  if(f && f.kind==='atk'){ atkClick(act, el, f); return; }
+  // 守方
+  if(f && f.kind==='def'){ defClick(act, el, f); return; }
+});
+
+function readNum(k){ const el=document.getElementById('nv_'+k); return el?+el.textContent:0; }
+
+function atkClick(act, el, f){
+  const bu=BS.units[f.unit];
+  if(act==='mb'){ // 近戰分流
+    const v=el.dataset.v;
+    if(v==='auto'){ f.carry=0; f.autoHit=true; f.sub='power'; renderAtk(); return; }
+    // clash / parry：都走近戰值對拼（守方數字由對手報）
+    f.sub='hit'; f.meleeClash=(v==='clash'); renderAtk(); return;
+  }
+  if(act==='atk_roll_hit'){ f.myHit=rollPool(+el.dataset.dice,+el.dataset.thr); renderAtk(); return; }
+  if(act==='atk_hit_next'){ f.myHit=readNum('myHit'); f.sub='oppEvade'; renderAtk(); return; }
+  if(act==='atk_compare'){ f.oppEvade=readNum('oppEvade'); f.sub='compare'; renderAtk(); return; }
+  if(act==='atk_power'){ f.sub='power'; renderAtk(); return; }
+  if(act==='atk_armor'){ f.ring=ringResult(f.w.type, el.dataset.a); f.oppArmor=el.dataset.a; f.sub='powerRoll'; renderAtk(); return; }
+  if(act==='atk_roll_pow'){ f.myPow=rollPool(+el.dataset.dice,+el.dataset.thr); renderAtk(); return; }
+  if(act==='atk_struct'){ f.myPow=readNum('myPow'); f.sub='oppStruct'; renderAtk(); return; }
+  if(act==='atk_net'){ f.oppStruct=readNum('oppStruct'); f.sub='net'; renderAtk(); return; }
+  if(act==='atk_done'){ finishResolve(f); return; }
+}
+function defClick(act, el, f){
+  const bu=BS.units[f.unit];
+  // 近戰分流結果
+  if(act==='def_clash'){ f.defMode='clash'; f._useMelee=true; f.sub='meleeRoll'; renderDef(); return; }
+  if(act==='def_parry'){ f.defMode='parry'; f._useMelee=(el.dataset.v==='melee'); f.sub='meleeRoll'; renderDef(); return; }
+  if(act==='def_auto'){ f.defMode='auto'; f.sub='heat'; renderDef(); return; }
+  if(act==='def_roll_mel'){ f.myEvade=rollPool(f._md.dice,f._md.thr); renderDef(); return; }
+  if(act==='def_mel_opp'){ f.myEvade=readNum('myEvade'); f.sub='meleeOpp'; renderDef(); return; }
+  if(act==='def_mel_cmp'){ f.oppHit=readNum('oppHit'); f.sub='meleeCmp'; renderDef(); return; }
+
+  if(act==='def_situ'){ f.oppHit=readNum('oppHit'); f.sub='situ'; renderDef(); return; }
+  if(act==='def_evade'){ f.cover=document.getElementById('defCover')?document.getElementById('defCover').checked:false; f.sub='evade'; renderDef(); return; }
+  if(act==='def_roll_ev'){ f.myEvade=rollPool(+el.dataset.dice,+el.dataset.thr); renderDef(); return; }
+  if(act==='def_compare'){ f.myEvade=readNum('myEvade'); f.sub='compare'; renderDef(); return; }
+  if(act==='def_heat'){ f.sub='heat'; renderDef(); return; }
+  if(act==='def_applyheat'){ f.addHeat=readNum('addHeat'); applyHeat(bu, f.addHeat, f.hg); f.sub='struct'; renderGame(); renderDef(); return; }
+  if(act==='def_roll_st'){ f.myStruct=rollPool(+el.dataset.dice,+el.dataset.thr); renderDef(); return; }
+  if(act==='def_oppPow'){ f.myStruct=readNum('myStruct'); f.sub='oppPow'; renderDef(); return; }
+  if(act==='def_dmg'){ f.oppPow=readNum('oppPow'); f.sub='dmg'; renderDef(); return; }
+  if(act==='def_part'){ f.sub='part'; renderDef(); return; }
+  if(act==='def_part_roll'){ const d6=Math.floor(Math.random()*6)+1; f.d6=d6; f.partRes=partDestroy(bu,d6); f.sub='partResult'; renderGame(); renderDef(); return; }
+  if(act==='def_part_pick'){ const d6=+el.dataset.d; f.d6=d6; f.partRes=partDestroy(bu,d6); f.sub='partResult'; renderGame(); renderDef(); return; }
+  if(act==='def_done'){ finishResolveDef(f); return; }
+}
+
+/* 結算收尾 */
+function finishResolve(f){   // 攻方
+  const bu=BS.units[f.unit];
+  f.a.resolved.add(f.hg);
+  nextDueOrFinishGrid(bu, f.hg);
+}
+function finishResolveDef(f){ // 守方
+  const bu=BS.units[f.unit];
+  if(f.a) f.a.resolved.add(f.hg);
+  if(f.manual){
+    // 手動「被攻擊」結算完，回到原本在做的事；若本來淨空則回到淨空
+    const sv=UI._savedFlow; UI._savedFlow=null;
+    if(sv){ UI.flow=sv; renderGame(); }
+    else { goClean(); }
+    return;
+  }
+  nextDueOrFinishGrid(bu, f.hg);
+}
+function nextDueOrFinishGrid(bu, g){
+  renderGame();
+  // 同機這格還有別的命中格？
+  const due=dueHitsAt(bu,g);
+  if(due.length){ UI.flow={kind:'resolveHit', unit:bu.idx, due, g}; renderPanel(); return; }
+  bu.gridDone=g;
+  enterGrid(g);
+}
+
+/* ============================================================
+   防止頁面縮放手勢干擾
+   ============================================================ */
+document.addEventListener('gesturestart', e=>e.preventDefault());
+
+/* ============================================================
+   網址直接帶隊：helper.html#f=... 開啟時自動載入（產生器一鍵開戰）
+   ============================================================ */
+(function(){
+  const m = location.hash.match(/#f=([^\s]+)/);
+  if(!m) return;
+  try{ startBattle(decodeState(m[1])); }
+  catch(e){ const err=document.getElementById('loadErr'); if(err) err.textContent='網址內的隊伍資料無法解碼，請改用貼上方式。'; }
+})();
+</script>
+</body>
+</html>

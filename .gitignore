@@ -1,0 +1,6 @@
+# 本機開發用（Claude Code 預覽設定）
+.claude/
+
+# 原始檔名版本（已改用 helper.html / builder.html 作為線上正式檔，避免重複）
+對戰helper.html
+_機體卡產生器_最新.html
