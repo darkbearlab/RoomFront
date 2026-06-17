@@ -732,9 +732,10 @@ function isOverheat(bu){ return bu.heat>=bu.heatCap; }
 
 function declareMove(bu, g, mode, dist, posture){
   const start=g+1;
+  const activePosture = (posture && posture!=='—') ? posture : bu.posture;  // 這趟移動的姿態
   if(mode==='高速'){
     // 全系・兩格
-    for(let i=0;i<2;i++){ const c=cell(bu,start+i); c.m={t:'move',mode:'高速',dist:2}; c.w={t:'full'}; }
+    for(let i=0;i<2;i++){ const c=cell(bu,start+i); c.m={t:'move',mode:'高速',dist:2,posture:(i===0?posture:undefined)}; c.w={t:'full'}; }
     applyHeat(bu, 2*Math.max(1,dist||4), start);
   }else{
     const c=cell(bu,start);
@@ -742,6 +743,8 @@ function declareMove(bu, g, mode, dist, posture){
     if(mode==='步行'){ applyHeat(bu, -2, start); }      // 散熱2
     else if(mode==='噴射'){ applyHeat(bu, 2*Math.max(1,dist||1), start); }
   }
+  // 滯空附加費：移動時若處於滯空（升空或維持滯空），每 UD 另 +1 熱
+  if(activePosture==='滯空'){ applyHeat(bu, Math.max(1,dist||1), start); }
   if(posture && posture!=='—') bu.posture=posture;
 }
 function declarePass(bu, g){
@@ -1170,14 +1173,18 @@ function backToTurn(f){
 
 function cmdMove(f,bu,g){
   const step=f.step||'mode';
+  const hasThr=bu.base.gear.includes('thruster');
+  const hasFly=bu.base.gear.includes('flight');
   if(step==='mode'){
-    const hasThr=bu.base.gear.includes('thruster');
     const bothFree=sysFree(bu,g,'m')&&sysFree(bu,g,'w')&&!f.parent.declared.w;
-    let html=hq('走還是衝？',bu)+'<div class="bgrid">';
+    let html=hq('這格機動系做什麼？',bu)+'<div class="bgrid">';
     html+=mb('步行','每格 ≤1 UD・散熱 2・可同格再射擊');
     if(hasThr) html+=mb('噴射','每格水平 ≥1 UD・每 UD +2 熱');
     if(hasThr&&bothFree) html+=mb('高速','全系・直線兩格・每 UD +2 熱・視同掩體');
-    html+=mb('姿勢','只切姿勢（蹲下＝這格不動，換掩體）');
+    // 蹲下＝唯一「這格不移動」的姿勢（用本格移動換掩體）
+    if(bu.posture==='站') html+=mb('蹲下','換掩體・這格不移動（之後可直接升空）');
+    if(bu.posture==='蹲') html+=mb('起身','站起來（原地不移動；要邊起身邊移動請選步行/噴射）');
+    // 升空／著陸＝隨移動起手切換，走「步行/噴射/高速 → 姿勢」那條
     html+='</div>'+backBtn();
     setPanel(html);
     function mb(m,sm){ return '<button class="bigbtn" data-act="movemode" data-m="'+m+'">'+m+'<span class="sm">'+sm+'</span></button>'; }
@@ -1192,11 +1199,19 @@ function cmdMove(f,bu,g){
     setPanel(html); return;
   }
   if(step==='posture'){
-    let html=hq('移動開頭要切姿勢嗎？',bu)+'<div class="bgrid">';
-    html+='<button class="bigbtn" data-act="moveposture" data-p="—">不切（維持'+bu.posture+'姿）</button>';
-    if(bu.posture!=='蹲') html+='<button class="bigbtn ghost" data-act="moveposture" data-p="蹲">蹲下（換掩體・這格不移動）</button>';
-    if(bu.posture==='蹲') html+='<button class="bigbtn ghost" data-act="moveposture" data-p="站">起身（可同格移動）</button>';
-    if(bu.base.gear.includes('flight')) html+='<button class="bigbtn ghost" data-act="moveposture" data-p="滯空">升空（每 UD 另 +1 熱）</button>';
+    // 移動起手切姿勢（這格照樣移動）；蹲姿不在此（蹲＝不移動）
+    let html=hq('移動起手要切姿勢嗎？<span style="font-size:12px;font-weight:normal">（升空/著陸/起身這格都照樣移動）</span>',bu)+'<div class="bgrid">';
+    if(bu.posture==='蹲'){
+      // 蹲姿要移動，必須起身或直接升空（不得維持蹲姿移動）
+      html+='<button class="bigbtn" data-act="moveposture" data-p="站">起身後移動（蹲→站）</button>';
+      if(hasFly) html+='<button class="bigbtn ghost" data-act="moveposture" data-p="滯空">直接升空（蹲→滯空・每 UD 另 +1 熱）</button>';
+    }else if(bu.posture==='滯空'){
+      html+='<button class="bigbtn" data-act="moveposture" data-p="—">維持滯空（每 UD 另 +1 熱）</button>';
+      html+='<button class="bigbtn ghost" data-act="moveposture" data-p="站">著陸（滯空→站・落地）</button>';
+    }else{ // 站
+      html+='<button class="bigbtn" data-act="moveposture" data-p="—">維持站姿</button>';
+      if(hasFly) html+='<button class="bigbtn ghost" data-act="moveposture" data-p="滯空">升空（站→滯空・每 UD 另 +1 熱）</button>';
+    }
     html+='</div>'+backBtn();
     setPanel(html); return;
   }
@@ -1676,12 +1691,17 @@ document.addEventListener('click', e=>{
   if(act==='cmdback'){ UI.flow=f.parent; renderPanel(); return; }
 
   // 移動
-  if(act==='movemode'){ f.mode=el.dataset.m; if(f.mode==='姿勢'){ f.step='posture'; f.posOnly=true; } else f.step='dist'; renderPanel(); return; }
+  if(act==='movemode'){
+    const bu=BS.units[f.unit]; const k=el.dataset.m;
+    if(k==='蹲下'){ declarePosture(bu, f.g, '蹲'); f.parent.declared.m=true; backToTurn(f); return; }
+    if(k==='起身'){ declarePosture(bu, f.g, '站'); f.parent.declared.m=true; backToTurn(f); return; }
+    f.mode=k; f.step='dist'; renderPanel(); return;
+  }
   if(act==='movedist'){ f.dist=+el.dataset.d; f.step='posture'; renderPanel(); return; }
   if(act==='moveposture'){
     const bu=BS.units[f.unit]; const p=el.dataset.p;
-    if(f.posOnly){ declarePosture(bu, f.g, p==='—'?bu.posture:p); f.parent.declared.m=true; }
-    else { declareMove(bu, f.g, f.mode, f.dist, p==='—'?null:p); f.parent.declared.m=true; if(f.mode==='高速') f.parent.declared.w=true; }
+    declareMove(bu, f.g, f.mode, f.dist, p==='—'?null:p);
+    f.parent.declared.m=true; if(f.mode==='高速') f.parent.declared.w=true;
     backToTurn(f); return;
   }
 
