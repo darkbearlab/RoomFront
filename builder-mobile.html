@@ -86,12 +86,13 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 #msheet{
   position:fixed;left:0;right:0;bottom:0;z-index:50;max-width:560px;margin:0 auto;
   background:#fff;border-top:3px solid #000;border-radius:16px 16px 0 0;
-  box-shadow:0 -6px 26px rgba(0,0,0,.35);max-height:82vh;display:flex;flex-direction:column;
+  box-shadow:0 -6px 26px rgba(0,0,0,.35);max-height:82vh;display:flex;flex-direction:column;overflow:hidden;
 }
+.msh-shell{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;overflow:hidden}
 .msh-head{flex:0 0 auto;display:flex;align-items:center;font-size:15px;font-weight:bold;
   padding:12px 14px;border-bottom:1px solid #ddd;background:#f3f1ea;border-radius:13px 13px 0 0}
 .msh-head .msh-x{margin-left:auto;background:#eceae3;border:1px solid #aaa;border-radius:6px;width:30px;height:30px;font-size:15px}
-.msh-body{flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:10px 12px calc(14px + env(safe-area-inset-bottom))}
+.msh-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:10px 12px calc(14px + env(safe-area-inset-bottom))}
 .pgrp{font-size:11px;font-weight:bold;letter-spacing:2px;color:#fff;background:#000;padding:3px 8px;border-radius:3px;margin:10px 0 6px}
 .pgrp:first-child{margin-top:0}
 .pitem{width:100%;text-align:left;display:flex;flex-direction:column;gap:2px;background:#fff;border:1px solid #ccc;border-left:4px solid #000;border-radius:5px;padding:9px 11px;margin-bottom:6px}
@@ -656,16 +657,22 @@ function commit(){ save(); renderAll(); }
 /* ============================================================
    底部 sheet（挑選器／選單）
    ============================================================ */
-let _lockY=0;
+/* 背景捲動鎖：不動 body 位置（避免 iOS 把選單自身捲動也卡死），
+   改用攔截 touchmove——只放行選單內容區(.msh-body)的捲動，其餘一律擋掉 */
+function bgTouchMove(e){
+  const sb=document.querySelector('.msh-body');
+  if(sb && sb.contains(e.target) && sb.scrollHeight>sb.clientHeight) return; // 選單可捲區→放行
+  if(e.cancelable) e.preventDefault();                                       // 背景／遮罩→擋掉
+}
 function lockBg(){
-  _lockY = window.scrollY || document.documentElement.scrollTop || 0;
-  const b=document.body.style;
-  b.position='fixed'; b.top=(-_lockY)+'px'; b.left='0'; b.right='0'; b.width='100%';
+  document.documentElement.style.overflow='hidden';
+  document.body.style.overflow='hidden';
+  document.addEventListener('touchmove', bgTouchMove, {passive:false});
 }
 function unlockBg(){
-  const b=document.body.style;
-  b.position=''; b.top=''; b.left=''; b.right=''; b.width='';
-  window.scrollTo(0,_lockY);
+  document.documentElement.style.overflow='';
+  document.body.style.overflow='';
+  document.removeEventListener('touchmove', bgTouchMove, {passive:false});
 }
 function sheetOpen(){ return !document.getElementById('msheet').classList.contains('hidden'); }
 function openSheet(html){
